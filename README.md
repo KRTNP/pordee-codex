@@ -56,7 +56,7 @@ claude plugin install pordee@pordee
 
 ตัดคำสุภาพ (ครับ/ค่ะ/นะคะ), คำลังเลใจ (อาจจะ/น่าจะ/จริงๆแล้ว), และคำทักทาย (ได้เลยครับ/แน่นอน) ทิ้ง แต่เก็บ grammar เต็ม อ่านแล้วยังเป็นภาษาไทยปกติ professional
 
-### 🪨 Full — `/pordee` หรือ `/pordee full` (default)
+### ⚡ Full — `/pordee` หรือ `/pordee full` (default)
 
 ตัดเหมือน lite + ตัด particle ที่ซ้ำซ้อน (ที่/ซึ่ง/ว่า/อยู่/กำลัง) + ตัด nominalizer (การ-, ความ-) + ใช้คำสั้น (ดู ไม่ใช่ ตรวจสอบ) + fragment OK
 
@@ -70,9 +70,9 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 
 <table>
 <tr>
-<th width="34%">🗣️ Normal<br><sub>~80 tok</sub></th>
-<th width="33%">🪶 Lite<br><sub>~45 tok · 44% saved</sub></th>
-<th width="33%">🪨 Full<br><sub>~22 tok · 73% saved</sub></th>
+<th width="34%">🗣️ Normal<br><sub>~80 tokens</sub></th>
+<th width="33%">🪶 Lite<br><sub>~45 tokens · 44% saved</sub></th>
+<th width="33%">⚡ Full<br><sub>~22 tokens · 73% saved</sub></th>
 </tr>
 <tr>
 <td>"แน่นอนครับ ผมยินดีจะอธิบายให้นะครับ จริงๆ แล้วเหตุผลที่ React component ของคุณ re-render นั้น น่าจะเกิดจากการที่คุณส่ง object reference ใหม่เป็น prop ในทุกครั้งที่ component ถูก render ซึ่งทำให้ React มองว่า prop เปลี่ยน และทำการ re-render component ลูก ดังนั้นคุณอาจจะลองใช้ useMemo เพื่อ memoize object นั้นดูครับ"</td>
@@ -94,9 +94,9 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 
 <table>
 <tr>
-<th width="34%">🗣️ Normal<br><sub>~70 tok</sub></th>
-<th width="33%">🪶 Lite<br><sub>~35 tok · 50% saved</sub></th>
-<th width="33%">🪨 Full<br><sub>~18 tok · 74% saved</sub></th>
+<th width="34%">🗣️ Normal<br><sub>~70 tokens</sub></th>
+<th width="33%">🪶 Lite<br><sub>~35 tokens · 50% saved</sub></th>
+<th width="33%">⚡ Full<br><sub>~18 tokens · 74% saved</sub></th>
 </tr>
 <tr>
 <td>"ครับ การทำ database connection pooling นั้น โดยทั่วไปแล้วก็คือการที่เราเก็บ connection ของ database ที่เปิดไว้แล้ว เพื่อนำกลับมาใช้ใหม่อีกครั้ง แทนที่จะต้องเปิด connection ใหม่ทุกครั้งที่มี request เข้ามา ซึ่งจะช่วยลด overhead ของการทำ TCP handshake และ authentication ได้อย่างมีประสิทธิภาพ"</td>
@@ -118,9 +118,9 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 
 <table>
 <tr>
-<th width="34%">🗣️ Normal<br><sub>~55 tok</sub></th>
-<th width="33%">🪶 Lite<br><sub>~30 tok · 45% saved</sub></th>
-<th width="33%">🪨 Full<br><sub>~14 tok · 75% saved</sub></th>
+<th width="34%">🗣️ Normal<br><sub>~55 tokens</sub></th>
+<th width="33%">🪶 Lite<br><sub>~30 tokens · 45% saved</sub></th>
+<th width="33%">⚡ Full<br><sub>~14 tokens · 75% saved</sub></th>
 </tr>
 <tr>
 <td>"ครับ ผมตรวจสอบให้แล้วนะครับ ปัญหาที่คุณเจอน่าจะเกิดจาก bug ใน auth middleware ครับ จริงๆ แล้วในส่วนของ token expiry check นั้น โค้ดใช้เครื่องหมาย <code>&lt;</code> แทนที่จะเป็น <code>&lt;=</code> ซึ่งทำให้ token ที่หมดอายุพอดีไม่ถูก reject ดังนั้นเราควรจะแก้ตรงจุดนี้ครับ"</td>
@@ -142,9 +142,9 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 
 <table>
 <tr>
-<th width="34%">🗣️ Normal<br><sub>~70 tok</sub></th>
-<th width="33%">🪶 Lite<br><sub>~32 tok · 54% saved</sub></th>
-<th width="33%">🪨 Full<br><sub>~14 tok · 80% saved</sub></th>
+<th width="34%">🗣️ Normal<br><sub>~70 tokens</sub></th>
+<th width="33%">🪶 Lite<br><sub>~32 tokens · 54% saved</sub></th>
+<th width="33%">⚡ Full<br><sub>~14 tokens · 80% saved</sub></th>
 </tr>
 <tr>
 <td>"ได้เลยครับ จริงๆ แล้วการเลือกอาหารกลางวันก็ขึ้นอยู่กับหลายปัจจัยนะครับ เช่น งบประมาณ เวลาที่มี และความต้องการทางโภชนาการของคุณ ถ้าคุณอยากทานอาหารที่ทำง่ายและมีประโยชน์ ผมขอแนะนำว่าน่าจะลองทำสลัดไก่ย่างดูครับ เพราะว่ามีโปรตีนสูงและไม่ใช้เวลาเตรียมนานเลย"</td>
@@ -166,9 +166,9 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 
 <table>
 <tr>
-<th width="34%">🗣️ Normal<br><sub>~75 tok</sub></th>
-<th width="33%">🪶 Lite<br><sub>~30 tok · 60% saved</sub></th>
-<th width="33%">🪨 Full<br><sub>~12 tok · 84% saved</sub></th>
+<th width="34%">🗣️ Normal<br><sub>~75 tokens</sub></th>
+<th width="33%">🪶 Lite<br><sub>~30 tokens · 60% saved</sub></th>
+<th width="33%">⚡ Full<br><sub>~12 tokens · 84% saved</sub></th>
 </tr>
 <tr>
 <td>"ครับ ถ้าคุณอยากไปเที่ยวเชียงใหม่ ผมแนะนำว่าน่าจะไปช่วงเดือนพฤศจิกายนถึงกุมภาพันธ์ครับ เพราะว่าเป็นช่วงที่อากาศเย็นสบาย ไม่ร้อนเกินไป และไม่มีฝนตกบ่อยเหมือนช่วงอื่นๆ จริงๆ แล้วเดือนธันวาคมก็เป็นเดือนที่นิยมที่สุดเลยนะครับ แต่ก็จะคนเยอะหน่อย"</td>
@@ -190,9 +190,9 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 
 <table>
 <tr>
-<th width="34%">🗣️ Normal<br><sub>~70 tok</sub></th>
-<th width="33%">🪶 Lite<br><sub>~32 tok · 54% saved</sub></th>
-<th width="33%">🪨 Full<br><sub>~14 tok · 80% saved</sub></th>
+<th width="34%">🗣️ Normal<br><sub>~70 tokens</sub></th>
+<th width="33%">🪶 Lite<br><sub>~32 tokens · 54% saved</sub></th>
+<th width="33%">⚡ Full<br><sub>~14 tokens · 80% saved</sub></th>
 </tr>
 <tr>
 <td>"ครับ การนอนหลับให้สนิทนั้นมีหลายวิธีนะครับ ก่อนอื่นเลย คุณควรจะหลีกเลี่ยงการดื่มกาแฟหรือเครื่องดื่มที่มีคาเฟอีนหลังบ่ายสาม จริงๆ แล้วก็ควรจะปิดหน้าจอทุกชนิดอย่างน้อย 30 นาทีก่อนนอนนะครับ และพยายามเข้านอนเวลาเดิมทุกวันเพื่อให้ร่างกายปรับนาฬิกาชีวิต"</td>
