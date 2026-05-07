@@ -1,12 +1,10 @@
-# pordee 🪨 (พอดี)
+# pordee (พอดี)
 
 > ทำไมใช้คำเยอะ ตอบสั้นๆ ก็เข้าใจ
 
 ได้แรงบันดาลใจมาจาก [caveman](https://github.com/JuliusBrussee/caveman) — pordee เป็นรุ่นภาษาไทยที่ตัด token ทิ้งโดยไม่เสียความถูกต้องทาง technical
 
 ---
-
-## Pordee คืออะไร
 
 `pordee` คือ Claude Code plugin สั่งให้ agent ตอบภาษาไทยกระชับ — ตัดคำสุภาพ (ครับ/ค่ะ/นะคะ), คำลังเล (อาจจะ/น่าจะ), และคำเชื่อมที่ไม่จำเป็นทิ้ง เก็บ technical term อังกฤษไว้ตามเดิม
 
@@ -19,42 +17,17 @@
 ### ผ่าน Claude Code plugin (แนะนำ)
 
 ```bash
-claude plugin marketplace add <github-user>/pordee
+claude plugin marketplace add kerlos/pordee
 claude plugin install pordee@pordee
 ```
 
-แทน `<github-user>` ด้วย GitHub username ของ repo นี้ (เช่น `kerlos/pordee`)
-
 หลังติดตั้งเสร็จ hooks จะถูก register อัตโนมัติ — เริ่ม session ใหม่แล้ว `/pordee` ใช้ได้ทันที
-
-### Manual (ถ้าไม่อยากใช้ marketplace)
-
-```bash
-git clone https://github.com/<github-user>/pordee ~/.claude/plugins/pordee
-```
-
-แล้วแก้ `~/.claude/settings.json` เพิ่ม block:
-
-```json
-{
-  "hooks": {
-    "SessionStart": [{ "hooks": [{
-      "type": "command",
-      "command": "node \"${HOME}/.claude/plugins/pordee/hooks/pordee-activate.js\"",
-      "timeout": 5
-    }]}],
-    "UserPromptSubmit": [{ "hooks": [{
-      "type": "command",
-      "command": "node \"${HOME}/.claude/plugins/pordee/hooks/pordee-mode-tracker.js\"",
-      "timeout": 5
-    }]}]
-  }
-}
-```
 
 ---
 
 ## วิธีใช้
+
+### Slash command
 
 | คำสั่ง | ผล |
 |---|---|
@@ -62,8 +35,18 @@ git clone https://github.com/<github-user>/pordee ~/.claude/plugins/pordee
 | `/pordee lite` | โหมดเบา — ตัดคำสุภาพและ filler ออก แต่ grammar เต็ม |
 | `/pordee full` | โหมดเต็ม — ตัดให้สั้นที่สุด, fragment OK |
 | `/pordee stop` | ปิด |
-| `พอดี` / `พอดีโหมด` / `พูดสั้นๆ` | เปิด (พิมพ์ไทยตรงๆ ก็ได้) |
-| `หยุดพอดี` / `พูดปกติ` | ปิด |
+
+### Keyword (ไม่ต้องพิมพ์ slash)
+
+พิมพ์คำเหล่านี้เป็นข้อความปกติในแชต — pordee จะเปิด/ปิดให้อัตโนมัติ ต้องเป็นข้อความทั้งบรรทัด ไม่ใช่ส่วนหนึ่งของประโยค
+
+| Keyword | ผล |
+|---|---|
+| `พอดี` | เปิด |
+| `พอดีโหมด` | เปิด |
+| `พูดสั้นๆ` | เปิด |
+| `หยุดพอดี` | ปิด |
+| `พูดปกติ` | ปิด |
 
 ---
 
