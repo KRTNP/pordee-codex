@@ -348,10 +348,18 @@ Mock `os.homedir()` to return `C:\Users\test` style path. Verify `STATE_PATH` re
 
 ## 6. README structure (Thai-only)
 
+**Attribution requirement:** README MUST open with a Thai-language credit to caveman, including a hyperlink to https://github.com/JuliusBrussee/caveman. Place this immediately after the title/tagline, before "Pordee คืออะไร".
+
+Suggested phrasing:
+> ได้แรงบันดาลใจมาจาก [caveman](https://github.com/JuliusBrussee/caveman) — pordee เป็นรุ่นภาษาไทยที่ตัด token ทิ้งโดยไม่เสียความถูกต้อง
+
 ```
 # pordee 🪨 (พอดี)
 
 > ทำไมใช้คำเยอะ ตอบสั้นๆ ก็เข้าใจ
+
+ได้แรงบันดาลใจมาจาก [caveman](https://github.com/JuliusBrussee/caveman) —
+pordee เป็นรุ่นภาษาไทยที่ตัด token ทิ้งโดยไม่เสียความถูกต้อง
 
 ## Pordee คืออะไร
 [Thai paragraph]
