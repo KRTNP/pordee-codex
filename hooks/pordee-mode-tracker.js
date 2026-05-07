@@ -5,7 +5,7 @@
 // Updates state.json. Emits hookSpecificOutput when pordee enabled.
 // Always exits 0.
 
-const { getState, setState } = require('./pordee-config');
+const { getState, setState, logError } = require('./pordee-config');
 
 function stripCodeFences(text) {
   // Remove triple-backtick fenced blocks (multi-line and inline ```...```).
@@ -73,7 +73,8 @@ process.stdin.on('end', () => {
       emitActiveReminder(state);
     }
   } catch (e) {
-    // Silent fail — never block prompts.
+    // Silent fail to never block prompts; log to ~/.pordee/error.log per spec §4.4.
+    logError(`mode-tracker: ${e.message}`);
   }
   process.exit(0);
 });
