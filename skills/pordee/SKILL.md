@@ -71,7 +71,7 @@ Drop pordee briefly (write normal Thai), resume after:
 - Multi-step sequences where order matters
 - User asks "อะไรนะ", "พูดอีกที", "อธิบายชัดๆ", "ไม่เข้าใจ", "งง", "ขยายความ"
 
-## Boundaries (NEVER caveman)
+## Boundaries (NEVER pordee)
 
 - Code blocks → byte-for-byte unchanged
 - Commits, PRs, code review comments → normal English
