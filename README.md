@@ -6,7 +6,7 @@
 
 ---
 
-`pordee` คือ Claude Code plugin สั่งให้ agent ตอบภาษาไทยกระชับ — ตัดคำสุภาพ (ครับ/ค่ะ/นะคะ), คำลังเล (อาจจะ/น่าจะ), และคำเชื่อมที่ไม่จำเป็นทิ้ง เก็บ technical term อังกฤษไว้ตามเดิม
+`pordee` คือ plugin สำหรับ Claude Code ที่ช่วยให้ agent ตอบภาษาไทยกระชับ — ตัดคำสุภาพ (ครับ/ค่ะ/นะคะ), คำลังเล (อาจจะ/น่าจะ), และคำเชื่อมที่ไม่จำเป็นทิ้ง เก็บ technical term อังกฤษไว้ตามเดิม
 
 ผล: ใช้ token น้อยลง 60-75% เนื้อหาเท่าเดิม
 
@@ -47,6 +47,40 @@ claude plugin install pordee@pordee
 | `พูดสั้นๆ` | เปิด |
 | `หยุดพอดี` | ปิด |
 | `พูดปกติ` | ปิด |
+
+---
+
+## Codex support
+
+pordee มี support ระดับ behavior/adapter สำหรับ Codex ด้วย trigger ชุดเดียวกันกับ Claude Code เพื่อให้เปิด/ปิดโหมดได้จาก prompt โดยตรง
+
+### Trigger ที่รองรับ
+
+| Trigger | ผล |
+|---|---|
+| `/pordee` | เปิด default level (full) |
+| `/pordee lite` | โหมดเบา |
+| `/pordee full` | โหมดเต็ม |
+| `/pordee stop` | ปิด |
+| `พอดี` | เปิด |
+| `พอดีโหมด` | เปิด |
+| `พูดสั้นๆ` | เปิด |
+| `หยุดพอดี` | ปิด |
+| `พูดปกติ` | ปิด |
+
+### Scope ของ state
+
+pordee อ่าน state ตามลำดับนี้:
+
+1. `~/.pordee/state.json` สำหรับค่า global
+2. `<repo>/.pordee/state.json` สำหรับ repo override
+3. ค่า effective config = `repo override > global > defaults`
+
+ตัวอย่าง:
+
+- ถ้า global ตั้ง `enabled=true` แต่ repo ไม่มีไฟล์ override, repo นั้นจะใช้ค่า global
+- ถ้า global ตั้ง `enabled=true` แต่ repo override ตั้ง `enabled=false`, repo นั้นจะปิด pordee แม้ global เปิดอยู่
+- ถ้า repo override ไม่ได้กำหนดค่าส่วนนั้นไว้ ระบบจะ fall back ไปใช้ global ก่อน แล้วค่อยใช้ defaults
 
 ---
 
@@ -213,21 +247,21 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 ## กลไกการทำงาน
 
 1. ติดตั้ง plugin → Claude Code register hook ของ pordee อัตโนมัติ
-2. เริ่ม session ใหม่ → SessionStart hook อ่าน state ที่ `~/.pordee/state.json`
+2. เริ่ม session ใหม่ → SessionStart hook อ่าน state ตามลำดับ `~/.pordee/state.json` แล้ว `<repo>/.pordee/state.json`
 3. ถ้า `enabled=true` → inject กฎ pordee เข้า context ของ session
 4. ทุก turn ที่ user พิมพ์ → UserPromptSubmit hook
-   - ตรวจ trigger ใน prompt (`/pordee`, `พอดี`, `หยุดพอดี`, ฯลฯ)
+   - ตรวจ trigger ใน prompt (`/pordee`, `/pordee lite`, `/pordee full`, `/pordee stop`, `พอดี`, `พอดีโหมด`, `พูดสั้นๆ`, `หยุดพอดี`, `พูดปกติ`)
    - update state ถ้าเจอ trigger
    - ฉีด reminder ของ level ปัจจุบันเข้า context (กันไม่ให้ model drift)
-5. State อยู่ที่ `~/.pordee/state.json` — ถาวรข้าม session
+5. State ถาวรข้าม session และ merge ตาม precedence `repo override > global > defaults`
 
 ---
 
-## ตอนไหน pordee จะหยุดเอง 
+## ตอนไหนควรหยุดหรืออธิบายชัด
 
-บางสถานการณ์ การพูดสั้นเกินไปอันตรายหรือคนอ่านอาจเข้าใจผิด pordee จะปิดตัวเองชั่วคราว ตอบเป็นภาษาไทยปกติเต็มประโยค จบแล้วค่อยกลับมา
+บางสถานการณ์ การพูดสั้นเกินไปอาจอันตรายหรือทำให้คนอ่านเข้าใจผิด แนวทางของ pordee คือขยับจากโหมดสั้นไปเป็นภาษาไทยปกติเต็มประโยคชั่วคราว แล้วค่อยกลับมาใช้โหมดเดิมในบริบทถัดไป
 
-ถ้าผู้ใช้ต้องการให้อธิบายชัด ๆ พิมพ์คำต่อไปนี้ pordee จะหยุดและตอบยาวขึ้น:
+ถ้าผู้ใช้ต้องการให้อธิบายชัด ๆ คำต่อไปนี้ใช้เป็นสัญญาณให้ตอบยาวขึ้น:
 
 | คำที่ผู้ใช้พิมพ์ | ความหมาย |
 |---|---|
@@ -236,7 +270,7 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 | `อธิบายชัดๆ` | ขอละเอียดกว่านี้ |
 | `ขยายความ` | ขอรายละเอียด |
 
-นอกจากนี้ pordee จะหยุดเองเมื่อ:
+นอกจากนี้ แนวทางตอบจะยอมขยายความเมื่อ:
 
 - มี **security warning** หรือ ⚠️ ในคำตอบ
 - คำสั่งที่ย้อนกลับไม่ได้ — `DROP TABLE`, `rm -rf`, `git push --force`, `git reset --hard`, `git branch -D`
@@ -248,7 +282,7 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 
 ## ข้อจำกัด
 
-- ตอนนี้รองรับเฉพาะ Claude Code (v1) — โปรแกรมอื่นๆ จะเพิ่มเข้ามาในทีหลัง
+- README นี้ยก Claude Code เป็น flow หลักในการติดตั้ง แต่ trigger, level และ state scope ใช้กับ Codex ได้ด้วย
 
 ---
 
