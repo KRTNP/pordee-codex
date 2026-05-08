@@ -1,6 +1,7 @@
 const {
   getEffectiveState,
   resolveStatePaths,
+  resolveScopedWriteTarget,
   writeScopedState,
   writeStateFile
 } = require('../core/pordee-state.js');
@@ -28,22 +29,38 @@ function resolveTriggerPatch(trigger, state) {
   return trigger;
 }
 
-function writeTriggerState(options, patch) {
+function buildStateWritePatch(baseState, patch) {
+  return {
+    enabled: patch.enabled === undefined ? baseState.enabled : patch.enabled,
+    level: patch.level === undefined ? baseState.level : patch.level
+  };
+}
+
+function writeTriggerState(options, patch, effectiveState) {
   const { homeDir, repoRoot, scope = 'auto' } = options;
+  const stateOptions = { homeDir, repoRoot };
+  const { globalStatePath, repoStatePath } = resolveStatePaths(stateOptions);
 
   if (scope === 'global') {
-    const { globalStatePath } = resolveStatePaths({ homeDir, repoRoot });
-    return writeStateFile(globalStatePath, patch);
+    writeStateFile(globalStatePath, patch);
+    return getEffectiveState(stateOptions);
   }
 
   if (scope === 'repo') {
-    const { repoStatePath } = resolveStatePaths({ homeDir, repoRoot });
     if (repoStatePath) {
-      return writeStateFile(repoStatePath, patch);
+      writeStateFile(repoStatePath, buildStateWritePatch(effectiveState, patch));
+      return getEffectiveState(stateOptions);
     }
   }
 
-  return writeScopedState({ homeDir, repoRoot }, patch);
+  const { targetPath } = resolveScopedWriteTarget(stateOptions);
+  if (targetPath === repoStatePath) {
+    writeStateFile(targetPath, buildStateWritePatch(effectiveState, patch));
+    return getEffectiveState(stateOptions);
+  }
+
+  writeScopedState(stateOptions, patch);
+  return getEffectiveState(stateOptions);
 }
 
 function handlePrompt({ prompt = '', homeDir, repoRoot, scope = 'auto' } = {}) {
@@ -58,7 +75,7 @@ function handlePrompt({ prompt = '', homeDir, repoRoot, scope = 'auto' } = {}) {
 
     const effectiveState = getEffectiveState({ homeDir, repoRoot });
     const patch = resolveTriggerPatch(trigger, effectiveState);
-    const state = writeTriggerState({ homeDir, repoRoot, scope }, patch);
+    const state = writeTriggerState({ homeDir, repoRoot, scope }, patch, effectiveState);
     return {
       kind: 'trigger',
       message: buildTriggerMessage(state),
