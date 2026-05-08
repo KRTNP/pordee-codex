@@ -1,27 +1,34 @@
 #!/usr/bin/env node
 // pordee — shared state helper.
-// State file: $PORDEE_HOME/state.json (defaults to ~/.pordee/state.json).
-// PORDEE_HOME exists for test isolation.
+// Maintains backward-compatible wrapper behavior while delegating storage logic
+// to the shared state core.
 
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const {
+  DEFAULT_STATE,
+  VALID_LEVELS,
+  resolveStatePaths,
+  readStateFile,
+  writeStateFile,
+  getEffectiveState,
+  resolveScopedWriteTarget,
+  writeScopedState
+} = require('../core/pordee-state');
 
-const HOME_DIR = process.env.PORDEE_HOME || path.join(os.homedir(), '.pordee');
-const STATE_PATH = path.join(HOME_DIR, 'state.json');
-const ERROR_LOG_PATH = path.join(HOME_DIR, 'error.log');
-
-const DEFAULT_STATE = Object.freeze({
-  enabled: false,
-  level: 'full',
-  version: 1
+const HOME_DIR = process.env.PORDEE_HOME || os.homedir();
+const PATHS = resolveStatePaths({
+  homeDir: HOME_DIR,
+  repoRoot: process.cwd()
 });
-
-const VALID_LEVELS = new Set(['lite', 'full']);
+const STATE_PATH = PATHS.globalStatePath;
+const ERROR_LOG_PATH = PATHS.errorLogPath;
+const LEGACY_STATE_PATH = process.env.PORDEE_HOME ? path.join(HOME_DIR, 'state.json') : null;
 
 function logError(msg) {
   try {
-    fs.mkdirSync(HOME_DIR, { recursive: true });
+    fs.mkdirSync(path.dirname(ERROR_LOG_PATH), { recursive: true });
     fs.appendFileSync(ERROR_LOG_PATH, `[${new Date().toISOString()}] ${msg}\n`);
   } catch (e) {
     // Logging is best-effort.
@@ -30,17 +37,20 @@ function logError(msg) {
 
 function getState() {
   try {
-    if (!fs.existsSync(STATE_PATH)) {
-      return { ...DEFAULT_STATE };
+    const state = getEffectiveState({
+      homeDir: HOME_DIR,
+      repoRoot: process.cwd()
+    });
+
+    if (
+      LEGACY_STATE_PATH &&
+      !fs.existsSync(STATE_PATH) &&
+      fs.existsSync(LEGACY_STATE_PATH)
+    ) {
+      return readStateFile(LEGACY_STATE_PATH);
     }
-    const raw = fs.readFileSync(STATE_PATH, 'utf8');
-    const parsed = JSON.parse(raw);
-    return {
-      enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : DEFAULT_STATE.enabled,
-      level: VALID_LEVELS.has(parsed.level) ? parsed.level : DEFAULT_STATE.level,
-      version: typeof parsed.version === 'number' ? parsed.version : DEFAULT_STATE.version,
-      lastChanged: parsed.lastChanged || undefined
-    };
+
+    return state;
   } catch (e) {
     logError(`getState: ${e.message}`);
     return { ...DEFAULT_STATE };
@@ -49,22 +59,25 @@ function getState() {
 
 function setState(patch) {
   try {
-    fs.mkdirSync(HOME_DIR, { recursive: true });
-    const current = getState();
-    const merged = {
-      ...current,
-      ...patch,
-      version: 1,
-      lastChanged: new Date().toISOString()
-    };
-    // Validate level after merge.
-    if (!VALID_LEVELS.has(merged.level)) {
-      merged.level = DEFAULT_STATE.level;
+    const { targetPath } = resolveScopedWriteTarget({
+      homeDir: HOME_DIR,
+      repoRoot: process.cwd()
+    });
+
+    const state = writeScopedState({
+      homeDir: HOME_DIR,
+      repoRoot: process.cwd()
+    }, patch);
+
+    if (LEGACY_STATE_PATH && targetPath === STATE_PATH && STATE_PATH !== LEGACY_STATE_PATH) {
+      try {
+        writeStateFile(LEGACY_STATE_PATH, patch);
+      } catch (mirrorError) {
+        // Compatibility mirror is best-effort.
+      }
     }
-    const tmpPath = STATE_PATH + '.tmp';
-    fs.writeFileSync(tmpPath, JSON.stringify(merged, null, 2));
-    fs.renameSync(tmpPath, STATE_PATH);
-    return merged;
+
+    return state;
   } catch (e) {
     logError(`setState: ${e.message}`);
     return null;
