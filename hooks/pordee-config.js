@@ -45,7 +45,8 @@ function getState() {
     if (
       LEGACY_STATE_PATH &&
       !fs.existsSync(STATE_PATH) &&
-      fs.existsSync(LEGACY_STATE_PATH)
+      fs.existsSync(LEGACY_STATE_PATH) &&
+      !(PATHS.repoStatePath && fs.existsSync(PATHS.repoStatePath))
     ) {
       return readStateFile(LEGACY_STATE_PATH);
     }

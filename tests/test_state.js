@@ -13,6 +13,15 @@ function makeTempHome() {
   return dir;
 }
 
+function makeTempWorkspace() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pordee-workspace-'));
+  const home = path.join(root, 'home');
+  const repo = path.join(root, 'repo');
+  fs.mkdirSync(home, { recursive: true });
+  fs.mkdirSync(repo, { recursive: true });
+  return { root, home, repo };
+}
+
 function cleanup(dir) {
   fs.rmSync(dir, { recursive: true, force: true });
   delete process.env.PORDEE_HOME;
@@ -104,4 +113,39 @@ test('STATE_PATH defaults to ~/.pordee/state.json when PORDEE_HOME unset', () =>
   const { STATE_PATH } = require('../hooks/pordee-config.js');
   const expected = path.join(os.homedir(), '.pordee', 'state.json');
   assert.equal(STATE_PATH, expected);
+});
+
+test('legacy fallback does not override repo state when both exist', () => {
+  const workspace = makeTempWorkspace();
+  const previousCwd = process.cwd();
+  const previousHome = process.env.PORDEE_HOME;
+
+  try {
+    process.env.PORDEE_HOME = workspace.home;
+    process.chdir(workspace.repo);
+    delete require.cache[require.resolve('../hooks/pordee-config.js')];
+
+    const legacyStatePath = path.join(workspace.home, 'state.json');
+    const repoStatePath = path.join(workspace.repo, '.pordee', 'state.json');
+
+    fs.writeFileSync(legacyStatePath,
+      JSON.stringify({ enabled: true, level: 'full', version: 1 }));
+    fs.mkdirSync(path.dirname(repoStatePath), { recursive: true });
+    fs.writeFileSync(repoStatePath,
+      JSON.stringify({ enabled: true, level: 'lite', version: 1 }));
+
+    const { getState } = require('../hooks/pordee-config.js');
+    const state = getState();
+    assert.equal(state.enabled, true);
+    assert.equal(state.level, 'lite');
+  } finally {
+    process.chdir(previousCwd);
+    if (previousHome === undefined) {
+      delete process.env.PORDEE_HOME;
+    } else {
+      process.env.PORDEE_HOME = previousHome;
+    }
+    fs.rmSync(workspace.root, { recursive: true, force: true });
+    delete require.cache[require.resolve('../hooks/pordee-config.js')];
+  }
 });
