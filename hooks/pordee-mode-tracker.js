@@ -7,16 +7,13 @@
 
 const { getState, setState, logError } = require('./pordee-config');
 const { parseTrigger } = require('../core/pordee-triggers');
+const { renderPromptReminder } = require('../core/pordee-render');
 
 function emitActiveReminder(state) {
   process.stdout.write(JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'UserPromptSubmit',
-      additionalContext:
-        `PORDEE MODE ACTIVE (${state.level}). ` +
-        `ตอบไทยกระชับ. Keep technical English terms. ` +
-        `Drop polite particles, hedging, pleasantries. Fragments OK. ` +
-        `Code/commits/security: write normal.`
+      additionalContext: renderPromptReminder(state)
     }
   }));
 }
