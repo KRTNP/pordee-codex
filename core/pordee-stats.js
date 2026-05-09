@@ -203,7 +203,8 @@ function getStatsSummary(options = {}) {
       liteSavingsPct: BENCHMARK_PROFILE.liteSavingsPct,
       fullSavingsPct: BENCHMARK_PROFILE.fullSavingsPct,
       sampleCount: BENCHMARK_PROFILE.sampleCount
-    }
+    },
+    statsSchemaVersion: DEFAULT_VERSION
   };
 }
 

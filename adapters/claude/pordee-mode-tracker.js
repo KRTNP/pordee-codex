@@ -6,6 +6,7 @@
 // Always exits 0.
 
 const { getState, setState, logError } = require('./pordee-config');
+const { STATE_SCHEMA_VERSION } = require('../../core/pordee-state');
 const { parsePordeeCommand } = require('../../core/pordee-triggers');
 const { getStatsSummary, recordActivePrompt, recordToggle } = require('../../core/pordee-stats');
 const {
@@ -39,6 +40,15 @@ function emitAdditionalContext(text) {
   });
 }
 
+function buildCommandMetadata(prompt, state) {
+  return {
+    ...state,
+    lastCommand: prompt,
+    lastCommandSource: 'user',
+    sessionBoundLevel: state.level
+  };
+}
+
 function handleTrackerInput(input) {
   try {
     const data = JSON.parse(input);
@@ -47,7 +57,19 @@ function handleTrackerInput(input) {
     let handledToggle = false;
 
     if (command?.kind === 'stats') {
-      return emitAdditionalContext(renderStatsSummary(getStatsSummary(buildStatsOptions())));
+      const state = getState();
+      const summary = getStatsSummary(buildStatsOptions());
+      return emitAdditionalContext(renderStatsSummary({
+        ...summary,
+        mode: state,
+        health: {
+          repoStateValid: state.repoStateValid,
+          globalStateValid: state.globalStateValid,
+          lastReadError: state.lastReadError,
+          statsSchemaVersion: summary.statsSchemaVersion,
+          stateSchemaVersion: STATE_SCHEMA_VERSION
+        }
+      }));
     }
 
     if (command?.kind === 'status') {
@@ -55,7 +77,12 @@ function handleTrackerInput(input) {
     }
 
     if (command?.kind === 'toggle') {
-      const nextState = setState(command.patch);
+      const currentState = getState();
+      const nextState = setState(buildCommandMetadata(prompt, {
+        enabled: command.patch.enabled === undefined ? currentState.enabled : command.patch.enabled,
+        level: command.patch.level === undefined ? currentState.level : command.patch.level,
+        effectiveScope: currentState.stateSource === 'repo' ? 'repo' : 'global'
+      }));
       if (nextState) {
         handledToggle = true;
         recordToggle(buildStatsOptions(), {
@@ -67,10 +94,14 @@ function handleTrackerInput(input) {
 
     const state = getState();
     if (state.enabled && !handledToggle) {
+      setState({
+        sessionBoundLevel: state.level,
+        effectiveScope: state.stateSource === 'repo' ? 'repo' : 'global'
+      });
       recordActivePrompt(buildStatsOptions(), state.level);
-      return emitActiveReminder(state);
+      return emitActiveReminder(getState());
     } else if (state.enabled && handledToggle) {
-      return emitActiveReminder(state);
+      return emitActiveReminder(getState());
     }
   } catch (e) {
     // Silent fail to never block prompts; log to ~/.pordee/error.log per spec §4.4.

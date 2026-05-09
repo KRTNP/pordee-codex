@@ -8,6 +8,8 @@ const REQUIRED_BUNDLE_FILES = [
   path.join('.codex-plugin', 'plugin.json'),
   path.join('skills', 'pordee', 'SKILL.md')
 ];
+const INSTALLED_SKILL_RELATIVE_PATH = path.join('skills', 'pordee', 'SKILL.md');
+const INSTALLED_METADATA_RELATIVE_PATH = path.join('.codex-plugin', 'install.json');
 
 function printUsage() {
   console.log([
@@ -176,6 +178,40 @@ function validateSourceBundle(sourcePluginRoot) {
   }
 }
 
+function renderInstalledSkill(skillContent, targetRoot) {
+  const repoStatePath = path.join(targetRoot, '.pordee', 'state.json');
+  const sessionTruthBlock = [
+    '## Installed Project State',
+    '',
+    `Project state file: \`${repoStatePath}\``,
+    'Global fallback: `~/.pordee/state.json`',
+    '',
+    'For every response in this project:',
+    '- Read the project state file first',
+    '- If project state is missing, fallback to the global state file',
+    '- Never infer current mode from chat history alone',
+    '- If resolved state says `lite`, stay `lite` until the state file changes',
+    '- If resolved state says `full`, stay `full` until the state file changes',
+    '- If resolved state says disabled, stop pordee style immediately',
+    ''
+  ].join('\n');
+
+  return `${skillContent.replace(/\s*$/, '')}\n\n${sessionTruthBlock}`;
+}
+
+function writeInstallMetadata(pluginRoot, sourceRoot, targetRoot) {
+  const metadataPath = path.join(pluginRoot, INSTALLED_METADATA_RELATIVE_PATH);
+  const metadata = {
+    plugin: PLUGIN_NAME,
+    installedAt: new Date().toISOString(),
+    sourceRoot,
+    targetRoot,
+    stateSchemaVersion: 2
+  };
+
+  fs.writeFileSync(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`);
+}
+
 async function installIntoProject(options = {}) {
   const sourceRoot = options.sourceRoot ? path.resolve(options.sourceRoot) : path.resolve(__dirname, '..');
   const targetRoot = resolveTargetRoot(options.targetRoot ?? options.project);
@@ -201,6 +237,10 @@ async function installIntoProject(options = {}) {
   try {
     fs.rmSync(stagingPluginRoot, { recursive: true, force: true });
     fs.cpSync(sourcePluginRoot, stagingPluginRoot, { recursive: true });
+    const stagedSkillPath = path.join(stagingPluginRoot, INSTALLED_SKILL_RELATIVE_PATH);
+    const stagedSkillContent = fs.readFileSync(stagedSkillPath, 'utf8');
+    fs.writeFileSync(stagedSkillPath, renderInstalledSkill(stagedSkillContent, targetRoot));
+    writeInstallMetadata(stagingPluginRoot, sourceRoot, targetRoot);
     const replacedBundle = replaceDirectoryAtomically(installedPluginRoot, stagingPluginRoot);
 
     try {

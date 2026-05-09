@@ -1,5 +1,6 @@
 const {
   getEffectiveState,
+  STATE_SCHEMA_VERSION,
   resolveStatePaths,
   resolveScopedWriteTarget,
   writeScopedState,
@@ -44,7 +45,17 @@ function resolveTriggerPatch(trigger, state) {
 function buildStateWritePatch(baseState, patch) {
   return {
     enabled: patch.enabled === undefined ? baseState.enabled : patch.enabled,
-    level: patch.level === undefined ? baseState.level : patch.level
+    level: patch.level === undefined ? baseState.level : patch.level,
+    lastCommand: patch.lastCommand === undefined ? baseState.lastCommand : patch.lastCommand,
+    lastCommandAt: patch.lastCommandAt === undefined ? baseState.lastCommandAt : patch.lastCommandAt,
+    lastCommandSource: patch.lastCommandSource === undefined
+      ? baseState.lastCommandSource
+      : patch.lastCommandSource,
+    effectiveScope: patch.effectiveScope === undefined ? baseState.effectiveScope : patch.effectiveScope,
+    sessionBoundLevel: patch.sessionBoundLevel === undefined
+      ? baseState.sessionBoundLevel
+      : patch.sessionBoundLevel,
+    sessionBoundAt: patch.sessionBoundAt === undefined ? baseState.sessionBoundAt : patch.sessionBoundAt
   };
 }
 
@@ -54,41 +65,84 @@ function writeTriggerState(options, patch, effectiveState) {
   const { globalStatePath, repoStatePath } = resolveStatePaths(stateOptions);
 
   if (scope === 'global') {
-    writeStateFile(globalStatePath, patch);
+    writeStateFile(globalStatePath, {
+      ...patch,
+      effectiveScope: 'global'
+    });
     return getEffectiveState(stateOptions);
   }
 
   if (scope === 'repo') {
     if (repoStatePath) {
-      writeStateFile(repoStatePath, buildStateWritePatch(effectiveState, patch));
+      writeStateFile(repoStatePath, buildStateWritePatch(effectiveState, {
+        ...patch,
+        effectiveScope: 'repo'
+      }));
       return getEffectiveState(stateOptions);
     }
   }
 
   const { targetPath } = resolveScopedWriteTarget(stateOptions);
   if (targetPath === repoStatePath) {
-    writeStateFile(targetPath, buildStateWritePatch(effectiveState, patch));
+    writeStateFile(targetPath, buildStateWritePatch(effectiveState, {
+      ...patch,
+      effectiveScope: 'repo'
+    }));
     return getEffectiveState(stateOptions);
   }
 
-  writeScopedState(stateOptions, patch);
+  writeScopedState(stateOptions, {
+    ...patch,
+    effectiveScope: 'global'
+  });
+  return getEffectiveState(stateOptions);
+}
+
+function buildCommandMetadata(prompt, state) {
+  return {
+    ...state,
+    lastCommand: prompt,
+    lastCommandSource: 'user',
+    sessionBoundLevel: state.level
+  };
+}
+
+function persistSessionSnapshot(stateOptions, state) {
+  const paths = resolveStatePaths(stateOptions);
+  const patch = {
+    sessionBoundLevel: state.level,
+    effectiveScope: state.stateSource === 'repo' ? 'repo' : 'global'
+  };
+
+  if (state.stateSource === 'repo' && paths.repoStatePath) {
+    writeStateFile(paths.repoStatePath, buildStateWritePatch(state, patch));
+    return getEffectiveState(stateOptions);
+  }
+
+  writeStateFile(paths.globalStatePath, buildStateWritePatch(state, patch));
   return getEffectiveState(stateOptions);
 }
 
 function handlePrompt({ prompt = '', homeDir, repoRoot, scope = 'auto' } = {}) {
   const statsOptions = { homeDir, repoRoot };
   const sessionKey = `${homeDir || ''}::${repoRoot || ''}`;
-
-  if (!sessionTracker.has(sessionKey)) {
-    beginSession(statsOptions);
-    sessionTracker.add(sessionKey);
-  }
-
   const command = parsePordeeCommand(String(prompt));
   if (command?.kind === 'stats') {
+    const state = getEffectiveState(statsOptions);
+    const summary = getStatsSummary(statsOptions);
     return {
       kind: 'stats',
-      message: renderStatsSummary(getStatsSummary(statsOptions))
+      message: renderStatsSummary({
+        ...summary,
+        mode: state,
+        health: {
+          repoStateValid: state.repoStateValid,
+          globalStateValid: state.globalStateValid,
+          lastReadError: state.lastReadError,
+          statsSchemaVersion: summary.statsSchemaVersion,
+          stateSchemaVersion: STATE_SCHEMA_VERSION
+        }
+      })
     };
   }
   if (command?.kind === 'status') {
@@ -100,6 +154,11 @@ function handlePrompt({ prompt = '', homeDir, repoRoot, scope = 'auto' } = {}) {
     };
   }
 
+  if (!sessionTracker.has(sessionKey)) {
+    beginSession(statsOptions);
+    sessionTracker.add(sessionKey);
+  }
+
   if (command?.kind === 'toggle') {
     if (scope === 'repo' && !repoRoot) {
       return {
@@ -109,7 +168,10 @@ function handlePrompt({ prompt = '', homeDir, repoRoot, scope = 'auto' } = {}) {
     }
 
     const effectiveState = getEffectiveState(statsOptions);
-    const patch = resolveTriggerPatch(command.patch, effectiveState);
+    const patch = buildCommandMetadata(
+      String(prompt),
+      resolveTriggerPatch(command.patch, effectiveState)
+    );
     const state = writeTriggerState({ homeDir, repoRoot, scope }, patch, effectiveState);
     recordToggle(statsOptions, {
       enabled: state.enabled,
@@ -128,10 +190,11 @@ function handlePrompt({ prompt = '', homeDir, repoRoot, scope = 'auto' } = {}) {
   }
 
   recordActivePrompt(statsOptions, state.level);
+  const refreshedState = persistSessionSnapshot(statsOptions, state);
   return {
     kind: 'context',
-    state,
-    additionalContext: renderSessionContext(state)
+    state: refreshedState,
+    additionalContext: renderSessionContext(refreshedState)
   };
 }
 

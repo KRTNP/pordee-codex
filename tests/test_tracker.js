@@ -99,15 +99,84 @@ sequentialTest('tracker returns stats summary for /pordee stats without mutating
   }
 });
 
+sequentialTest('tracker returns stats summary for Thai stats aliases without mutating state', () => {
+  const home = makeTempHome();
+  try {
+    let result = runTracker('พอดี stats', home);
+    assert.equal(result.status, 0);
+    let parsed = JSON.parse(result.stdout);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /^pordee stats/m);
+    assert.equal(readState(home), null);
+
+    result = runTracker('พอดีสถิติ', home);
+    assert.equal(result.status, 0);
+    parsed = JSON.parse(result.stdout);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /^pordee stats/m);
+    assert.equal(readState(home), null);
+  } finally {
+    cleanup(home);
+  }
+});
+
 sequentialTest('tracker returns status summary for /pordee status without mutating state', () => {
   const home = makeTempHome();
   try {
     const result = runTracker('/pordee status', home);
     assert.equal(result.status, 0);
     const parsed = JSON.parse(result.stdout);
-    assert.equal(parsed.hookSpecificOutput.additionalContext, 'pordee status: off (full)');
+    assert.match(parsed.hookSpecificOutput.additionalContext, /^pordee status: off \(full\)/);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /source: global/);
     assert.equal(readState(home), null);
   } finally {
+    cleanup(home);
+  }
+});
+
+sequentialTest('tracker persists command metadata and session snapshot fields', () => {
+  const home = makeTempHome();
+  try {
+    let result = runTracker('/pordee lite', home);
+    assert.equal(result.status, 0);
+    let state = readState(home);
+    assert.equal(state.lastCommand, '/pordee lite');
+    assert.equal(state.lastCommandSource, 'user');
+    assert.equal(state.sessionBoundLevel, 'lite');
+    assert.equal(state.effectiveScope, 'global');
+
+    result = runTracker('regular prompt', home);
+    assert.equal(result.status, 0);
+    state = readState(home);
+    assert.equal(state.sessionBoundLevel, 'lite');
+    assert.match(state.sessionBoundAt || '', /^\d{4}-\d{2}-\d{2}T/);
+  } finally {
+    cleanup(home);
+  }
+});
+
+sequentialTest('tracker status includes state metadata and health details', () => {
+  const home = makeTempHome();
+  try {
+    fs.mkdirSync(path.join(home, '.pordee'), { recursive: true });
+    fs.writeFileSync(path.join(home, '.pordee', 'state.json'),
+      JSON.stringify({
+        enabled: true,
+        level: 'lite',
+        version: 2,
+        effectiveScope: 'global',
+        sessionBoundLevel: 'lite'
+      }));
+    fs.mkdirSync(path.join(process.cwd(), '.pordee'), { recursive: true });
+    fs.writeFileSync(path.join(process.cwd(), '.pordee', 'state.json'), '{bad json');
+
+    const result = runTracker('/pordee status', home);
+    assert.equal(result.status, 0);
+    const parsed = JSON.parse(result.stdout);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /source: global/);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /scope: global/);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /session: lite/);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /repo valid: no/);
+  } finally {
+    fs.rmSync(path.join(process.cwd(), '.pordee'), { recursive: true, force: true });
     cleanup(home);
   }
 });
@@ -172,7 +241,8 @@ sequentialTest('tracker accepts Thai prefixed toggle and status commands', () =>
     result = runTracker('พอดี status', home);
     assert.equal(result.status, 0);
     const parsed = JSON.parse(result.stdout);
-    assert.equal(parsed.hookSpecificOutput.additionalContext, 'pordee status: active (lite)');
+    assert.match(parsed.hookSpecificOutput.additionalContext, /^pordee status: active \(lite\)/);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /session: lite/);
 
     result = runTracker('พอดี stop', home);
     assert.equal(result.status, 0);

@@ -63,7 +63,7 @@ test('setState creates pordee dir if missing', () => {
     const written = JSON.parse(fs.readFileSync(STATE_PATH, 'utf8'));
     assert.equal(written.enabled, true);
     assert.equal(written.level, 'lite');
-    assert.equal(written.version, 1);
+    assert.equal(written.version, 2);
     assert.ok(written.lastChanged, 'lastChanged timestamp should be set');
   } finally {
     cleanup(home);

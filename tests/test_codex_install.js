@@ -22,6 +22,11 @@ const skillContent = [
   '# pordee',
   '',
   'Use terse, pragmatic communication.',
+  '',
+  '## Session Truth',
+  '',
+  'Before every response, read pordee state from the workspace when available.',
+  'Never infer current mode from chat history alone.',
   ''
 ].join('\n');
 
@@ -70,10 +75,24 @@ test('installIntoProject copies plugin bundle into .codex-plugins/pordee', async
       path.join(env.targetRoot, '.codex-plugins', 'pordee', 'skills', 'pordee', 'SKILL.md'),
       'utf8'
     );
+    const installMetadata = JSON.parse(
+      fs.readFileSync(
+        path.join(env.targetRoot, '.codex-plugins', 'pordee', '.codex-plugin', 'install.json'),
+        'utf8'
+      )
+    );
 
     assert.equal(installedManifest.name, 'pordee');
     assert.equal(installedManifest.skills[0].path, 'skills/pordee/SKILL.md');
-    assert.equal(installedSkill, skillContent);
+    assert.match(installedSkill, /## Session Truth/);
+    assert.match(
+      installedSkill,
+      new RegExp(env.targetRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    );
+    assert.match(installedSkill, /\.pordee\/state\.json/);
+    assert.equal(installMetadata.plugin, 'pordee');
+    assert.equal(installMetadata.targetRoot, env.targetRoot);
+    assert.match(installMetadata.installedAt || '', /^\d{4}-\d{2}-\d{2}T/);
   } finally {
     cleanup(env);
   }
@@ -285,7 +304,11 @@ test('installIntoProject refreshes stale plugin bundle content on reinstall', as
 
     assert.equal(installedManifest.name, 'pordee');
     assert.equal(installedManifest.skills[0].path, 'skills/pordee/SKILL.md');
-    assert.equal(installedSkill, skillContent);
+    assert.match(installedSkill, /## Session Truth/);
+    assert.match(
+      installedSkill,
+      new RegExp(env.targetRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    );
   } finally {
     cleanup(env);
   }

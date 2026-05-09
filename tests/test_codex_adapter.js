@@ -4,6 +4,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
+const CODEX_ADAPTER_MODULE_PATH = path.join(__dirname, '..', 'adapters', 'codex', 'pordee-codex.js');
+
+function sequentialTest(name, fn) {
+  test(name, { concurrency: false }, fn);
+}
+
 function makeEnv() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pordee-codex-'));
   return {
@@ -15,6 +21,7 @@ function makeEnv() {
 
 function cleanup(env) {
   fs.rmSync(env.root, { recursive: true, force: true });
+  delete require.cache[CODEX_ADAPTER_MODULE_PATH];
 }
 
 function readStats(env) {
@@ -23,8 +30,19 @@ function readStats(env) {
   );
 }
 
-test('handlePrompt updates state for trigger prompt and does not fall through to context', () => {
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+function readState(env) {
+  return JSON.parse(
+    fs.readFileSync(path.join(env.homeDir, '.pordee', 'state.json'), 'utf8')
+  );
+}
+
+function loadHandlePrompt() {
+  delete require.cache[CODEX_ADAPTER_MODULE_PATH];
+  return require(CODEX_ADAPTER_MODULE_PATH).handlePrompt;
+}
+
+sequentialTest('handlePrompt updates state for trigger prompt and does not fall through to context', () => {
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const result = handlePrompt({
@@ -46,8 +64,30 @@ test('handlePrompt updates state for trigger prompt and does not fall through to
   }
 });
 
-test('handlePrompt returns full activation confirmation for bare trigger prompt', () => {
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+sequentialTest('handlePrompt persists command metadata on trigger writes', () => {
+  const handlePrompt = loadHandlePrompt();
+  const env = makeEnv();
+  try {
+    handlePrompt({
+      prompt: '/pordee lite',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+
+    const written = readState(env);
+    assert.equal(written.lastCommand, '/pordee lite');
+    assert.equal(written.lastCommandSource, 'user');
+    assert.equal(written.effectiveScope, 'global');
+    assert.equal(written.sessionBoundLevel, 'lite');
+    assert.match(written.lastCommandAt || '', /^\d{4}-\d{2}-\d{2}T/);
+    assert.match(written.sessionBoundAt || '', /^\d{4}-\d{2}-\d{2}T/);
+  } finally {
+    cleanup(env);
+  }
+});
+
+sequentialTest('handlePrompt returns full activation confirmation for bare trigger prompt', () => {
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const result = handlePrompt({
@@ -63,8 +103,8 @@ test('handlePrompt returns full activation confirmation for bare trigger prompt'
   }
 });
 
-test('handlePrompt preserves effective level when re-enabling with bare trigger prompt', () => {
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+sequentialTest('handlePrompt preserves effective level when re-enabling with bare trigger prompt', () => {
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     handlePrompt({
@@ -94,8 +134,8 @@ test('handlePrompt preserves effective level when re-enabling with bare trigger 
   }
 });
 
-test('handlePrompt returns off confirmation for stop trigger prompt', () => {
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+sequentialTest('handlePrompt returns off confirmation for stop trigger prompt', () => {
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     handlePrompt({
@@ -118,8 +158,8 @@ test('handlePrompt returns off confirmation for stop trigger prompt', () => {
   }
 });
 
-test('handlePrompt returns pass when state disabled', () => {
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+sequentialTest('handlePrompt returns pass when state disabled', () => {
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const result = handlePrompt({
@@ -134,8 +174,8 @@ test('handlePrompt returns pass when state disabled', () => {
   }
 });
 
-test('handlePrompt returns stats result for /pordee stats', () => {
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+sequentialTest('handlePrompt returns stats result for /pordee stats', () => {
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const result = handlePrompt({
@@ -151,8 +191,34 @@ test('handlePrompt returns stats result for /pordee stats', () => {
   }
 });
 
-test('handlePrompt returns status result for /pordee status without mutating state', () => {
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+sequentialTest('handlePrompt returns pordee stats for Thai stats aliases', () => {
+  const handlePrompt = loadHandlePrompt();
+  const env = makeEnv();
+  try {
+    let result = handlePrompt({
+      prompt: 'พอดี stats',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+
+    assert.equal(result.kind, 'stats');
+    assert.match(result.message, /^pordee stats/m);
+
+    result = handlePrompt({
+      prompt: 'พอดีสถิติ',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+
+    assert.equal(result.kind, 'stats');
+    assert.match(result.message, /^pordee stats/m);
+  } finally {
+    cleanup(env);
+  }
+});
+
+sequentialTest('handlePrompt returns status result for /pordee status without mutating state', () => {
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const result = handlePrompt({
@@ -162,14 +228,15 @@ test('handlePrompt returns status result for /pordee status without mutating sta
     });
 
     assert.equal(result.kind, 'status');
-    assert.equal(result.message, 'pordee status: off (full)');
+    assert.match(result.message, /^pordee status: off \(full\)/);
+    assert.match(result.message, /source: global/);
   } finally {
     cleanup(env);
   }
 });
 
-test('handlePrompt accepts Thai prefixed commands for toggle and status', () => {
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+sequentialTest('handlePrompt accepts Thai prefixed commands for toggle and status', () => {
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const enableResult = handlePrompt({
@@ -186,7 +253,8 @@ test('handlePrompt accepts Thai prefixed commands for toggle and status', () => 
       repoRoot: env.repoRoot
     });
     assert.equal(statusResult.kind, 'status');
-    assert.equal(statusResult.message, 'pordee status: active (lite)');
+    assert.match(statusResult.message, /^pordee status: active \(lite\)/);
+    assert.match(statusResult.message, /session: lite/);
 
     const stopResult = handlePrompt({
       prompt: 'พอดี stop',
@@ -200,9 +268,9 @@ test('handlePrompt accepts Thai prefixed commands for toggle and status', () => 
   }
 });
 
-test('handlePrompt resolves enabled context using shared global and repo precedence', () => {
+sequentialTest('handlePrompt resolves enabled context using shared global and repo precedence', () => {
   const { resolveStatePaths, writeStateFile } = require('../core/pordee-state.js');
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const paths = resolveStatePaths({ homeDir: env.homeDir, repoRoot: env.repoRoot });
@@ -226,9 +294,36 @@ test('handlePrompt resolves enabled context using shared global and repo precede
   }
 });
 
-test('handlePrompt keeps default auto scope behavior for first trigger write', () => {
+sequentialTest('handlePrompt refreshes session snapshot from effective state on regular prompts', () => {
+  const { resolveStatePaths, writeStateFile } = require('../core/pordee-state.js');
+  const handlePrompt = loadHandlePrompt();
+  const env = makeEnv();
+  try {
+    const paths = resolveStatePaths({ homeDir: env.homeDir, repoRoot: env.repoRoot });
+    writeStateFile(paths.globalStatePath, { enabled: true, level: 'full' });
+    writeStateFile(paths.repoStatePath, { enabled: true, level: 'lite' });
+
+    const result = handlePrompt({
+      prompt: 'regular prompt',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+
+    assert.equal(result.kind, 'context');
+    assert.equal(result.state.sessionBoundLevel, 'lite');
+    assert.equal(result.state.stateSource, 'repo');
+
+    const written = JSON.parse(fs.readFileSync(paths.repoStatePath, 'utf8'));
+    assert.equal(written.sessionBoundLevel, 'lite');
+    assert.match(written.sessionBoundAt || '', /^\d{4}-\d{2}-\d{2}T/);
+  } finally {
+    cleanup(env);
+  }
+});
+
+sequentialTest('handlePrompt keeps default auto scope behavior for first trigger write', () => {
   const { resolveStatePaths } = require('../core/pordee-state.js');
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const paths = resolveStatePaths({ homeDir: env.homeDir, repoRoot: env.repoRoot });
@@ -247,9 +342,9 @@ test('handlePrompt keeps default auto scope behavior for first trigger write', (
   }
 });
 
-test('handlePrompt writes first trigger to repo scope when requested explicitly', () => {
+sequentialTest('handlePrompt writes first trigger to repo scope when requested explicitly', () => {
   const { resolveStatePaths } = require('../core/pordee-state.js');
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const paths = resolveStatePaths({ homeDir: env.homeDir, repoRoot: env.repoRoot });
@@ -273,9 +368,9 @@ test('handlePrompt writes first trigger to repo scope when requested explicitly'
   }
 });
 
-test('handlePrompt preserves inherited lite level for repo-scoped stop and re-enable flows', () => {
+sequentialTest('handlePrompt preserves inherited lite level for repo-scoped stop and re-enable flows', () => {
   const { resolveStatePaths, writeStateFile } = require('../core/pordee-state.js');
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const paths = resolveStatePaths({ homeDir: env.homeDir, repoRoot: env.repoRoot });
@@ -316,9 +411,9 @@ test('handlePrompt preserves inherited lite level for repo-scoped stop and re-en
   }
 });
 
-test('handlePrompt returns error for repo scope when repoRoot is missing', () => {
+sequentialTest('handlePrompt returns error for repo scope when repoRoot is missing', () => {
   const { resolveStatePaths } = require('../core/pordee-state.js');
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const paths = resolveStatePaths({ homeDir: env.homeDir });
@@ -339,9 +434,9 @@ test('handlePrompt returns error for repo scope when repoRoot is missing', () =>
   }
 });
 
-test('handlePrompt returns effective state after global write under repo override', () => {
+sequentialTest('handlePrompt returns effective state after global write under repo override', () => {
   const { resolveStatePaths, writeStateFile } = require('../core/pordee-state.js');
-  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+  const handlePrompt = loadHandlePrompt();
   const env = makeEnv();
   try {
     const paths = resolveStatePaths({ homeDir: env.homeDir, repoRoot: env.repoRoot });
@@ -369,7 +464,74 @@ test('handlePrompt returns effective state after global write under repo overrid
   }
 });
 
-test('handlePrompt returns context when state enabled', () => {
+sequentialTest('handlePrompt stats preserves current session counters across module reload', () => {
+  const env = makeEnv();
+  try {
+    let handlePrompt = loadHandlePrompt();
+    handlePrompt({
+      prompt: '/pordee lite',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+    handlePrompt({
+      prompt: 'regular prompt',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+
+    const before = readStats(env);
+    assert.equal(before.currentSession.activePromptCount, 1);
+
+    handlePrompt = loadHandlePrompt();
+    const result = handlePrompt({
+      prompt: '/pordee stats',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+
+    assert.equal(result.kind, 'stats');
+    assert.match(result.message, /session: 1 active prompts, 1 toggles/);
+    assert.deepEqual(readStats(env).currentSession, before.currentSession);
+  } finally {
+    cleanup(env);
+  }
+});
+
+sequentialTest('handlePrompt status preserves current session counters across module reload', () => {
+  const env = makeEnv();
+  try {
+    let handlePrompt = loadHandlePrompt();
+    handlePrompt({
+      prompt: '/pordee lite',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+    handlePrompt({
+      prompt: 'regular prompt',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+
+    const before = readStats(env);
+    assert.equal(before.currentSession.activePromptCount, 1);
+
+    handlePrompt = loadHandlePrompt();
+    const result = handlePrompt({
+      prompt: '/pordee status',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+
+    assert.equal(result.kind, 'status');
+    assert.match(result.message, /^pordee status: active \(lite\)/);
+    assert.match(result.message, /session: lite/);
+    assert.deepEqual(readStats(env).currentSession, before.currentSession);
+  } finally {
+    cleanup(env);
+  }
+});
+
+sequentialTest('handlePrompt returns context when state enabled', () => {
   const { writeScopedState } = require('../core/pordee-state.js');
   const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
   const env = makeEnv();

@@ -31,6 +31,45 @@ test('resolveStatePaths returns global and repo paths', () => {
   }
 });
 
+test('normalizeState migrates older versions to current schema with metadata defaults', () => {
+  const { normalizeState } = require('../core/pordee-state.js');
+  const state = normalizeState({ enabled: true, level: 'lite', version: 1 });
+
+  assert.equal(state.enabled, true);
+  assert.equal(state.level, 'lite');
+  assert.ok(state.version >= 2);
+  assert.equal(state.lastCommand, undefined);
+  assert.equal(state.effectiveScope, undefined);
+  assert.equal(state.sessionBoundLevel, undefined);
+});
+
+test('writeStateFile persists command metadata and session snapshot fields', () => {
+  const { writeStateFile } = require('../core/pordee-state.js');
+  const env = makeEnv();
+  try {
+    const statePath = path.join(env.homeRoot, '.pordee', 'state.json');
+    const written = writeStateFile(statePath, {
+      enabled: true,
+      level: 'lite',
+      lastCommand: '/pordee lite',
+      lastCommandSource: 'user',
+      effectiveScope: 'global',
+      sessionBoundLevel: 'lite'
+    });
+
+    assert.equal(written.enabled, true);
+    assert.equal(written.level, 'lite');
+    assert.equal(written.lastCommand, '/pordee lite');
+    assert.equal(written.lastCommandSource, 'user');
+    assert.equal(written.effectiveScope, 'global');
+    assert.equal(written.sessionBoundLevel, 'lite');
+    assert.match(written.lastCommandAt || '', /^\d{4}-\d{2}-\d{2}T/);
+    assert.match(written.sessionBoundAt || '', /^\d{4}-\d{2}-\d{2}T/);
+  } finally {
+    cleanup(env);
+  }
+});
+
 test('getEffectiveState prefers repo override over global', () => {
   const { writeStateFile, getEffectiveState } = require('../core/pordee-state.js');
   const env = makeEnv();
@@ -63,7 +102,39 @@ test('getEffectiveState inherits missing fields from global when repo override i
     const state = getEffectiveState({ homeDir: env.homeRoot, repoRoot: env.repoRoot });
     assert.equal(state.enabled, true);
     assert.equal(state.level, 'lite');
-    assert.equal(state.version, 1);
+    assert.equal(state.version, 2);
+  } finally {
+    cleanup(env);
+  }
+});
+
+test('getEffectiveState returns source and validity health metadata', () => {
+  const { writeStateFile, getEffectiveState } = require('../core/pordee-state.js');
+  const env = makeEnv();
+  try {
+    const globalStatePath = path.join(env.homeRoot, '.pordee', 'state.json');
+    const repoStatePath = path.join(env.repoRoot, '.pordee', 'state.json');
+
+    writeStateFile(globalStatePath, {
+      enabled: true,
+      level: 'full',
+      lastCommand: '/pordee full',
+      lastCommandSource: 'user'
+    });
+    writeStateFile(repoStatePath, {
+      level: 'lite',
+      effectiveScope: 'repo',
+      sessionBoundLevel: 'lite'
+    });
+
+    const state = getEffectiveState({ homeDir: env.homeRoot, repoRoot: env.repoRoot });
+    assert.equal(state.level, 'lite');
+    assert.equal(state.stateSource, 'repo');
+    assert.equal(state.repoStateValid, true);
+    assert.equal(state.globalStateValid, true);
+    assert.equal(state.effectiveScope, 'repo');
+    assert.equal(state.sessionBoundLevel, 'lite');
+    assert.equal(state.lastReadError, undefined);
   } finally {
     cleanup(env);
   }
@@ -83,6 +154,10 @@ test('getEffectiveState falls back when repo JSON malformed', () => {
     const state = getEffectiveState({ homeDir: env.homeRoot, repoRoot: env.repoRoot });
     assert.equal(state.enabled, true);
     assert.equal(state.level, 'full');
+    assert.equal(state.stateSource, 'global');
+    assert.equal(state.repoStateValid, false);
+    assert.equal(state.globalStateValid, true);
+    assert.match(state.lastReadError || '', /repo/i);
   } finally {
     cleanup(env);
   }
@@ -100,7 +175,7 @@ test('getEffectiveState falls back to defaults when global JSON malformed', () =
     const state = getEffectiveState({ homeDir: env.homeRoot, repoRoot: env.repoRoot });
     assert.equal(state.enabled, false);
     assert.equal(state.level, 'full');
-    assert.equal(state.version, 1);
+    assert.equal(state.version, 2);
   } finally {
     cleanup(env);
   }
@@ -120,6 +195,11 @@ test('getEffectiveState uses repo state when global JSON malformed', () => {
     const state = getEffectiveState({ homeDir: env.homeRoot, repoRoot: env.repoRoot });
     assert.equal(state.enabled, true);
     assert.equal(state.level, 'lite');
+    assert.equal(state.version, 2);
+    assert.equal(state.stateSource, 'repo');
+    assert.equal(state.globalStateValid, false);
+    assert.equal(state.repoStateValid, true);
+    assert.match(state.lastReadError || '', /global/i);
   } finally {
     cleanup(env);
   }

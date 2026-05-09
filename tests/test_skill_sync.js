@@ -15,3 +15,14 @@ test('packaged Codex skill stays in sync with root pordee skill', () => {
 
   assert.equal(packagedSkill, rootSkill);
 });
+
+test('root pordee skill includes session-truth rules for Codex', () => {
+  const rootSkill = fs.readFileSync(
+    path.join(__dirname, '..', 'skills', 'pordee', 'SKILL.md'),
+    'utf8'
+  );
+
+  assert.match(rootSkill, /## Session Truth/);
+  assert.match(rootSkill, /Before every response, read pordee state/i);
+  assert.match(rootSkill, /Never infer current mode from chat history alone/i);
+});
