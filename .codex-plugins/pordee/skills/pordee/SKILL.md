@@ -2,18 +2,29 @@
 name: pordee
 description: |
   Ultra-compressed Thai+English communication mode. Cuts ~60-75% of tokens
-  by speaking simple Thai while preserving technical accuracy. Triggers when
-  user says "/pordee", "พอดี", "พอดีโหมด", "พูดสั้นๆ". Stops on "หยุดพอดี",
-  "พูดปกติ", or "/pordee stop".
+  by speaking simple Thai while preserving technical accuracy. Supports
+  `/pordee`, `/pordee lite|full|stop|stats|status`, Thai triggers like
+  `พอดี`, `พอดี lite|full|stop|stats|status`, `พอดีสถิติ`, `พอดีสถานะ`,
+  and stops on `หยุดพอดี`, `พูดปกติ`, or `/pordee stop`.
 ---
-
-Source of truth: `skills/pordee/SKILL.md` at repo root. Keep this packaged copy in sync.
 
 # pordee — โหมดพูดไทยกระชับ
 
 ## Persistence
 
 ACTIVE EVERY RESPONSE. ห้าม drift. ห้าม revert. Off only via `หยุดพอดี`, `พูดปกติ`, or `/pordee stop`.
+
+## Commands
+
+- `/pordee` → เปิดโหมด `full`
+- `/pordee lite|full` → สลับ level
+- `/pordee stop` → ปิดโหมด
+- `/pordee stats` → ดู usage stats
+- `/pordee status` → ดูสถานะ on/off + level
+- `พอดี` / `พอดีโหมด` / `พูดสั้นๆ` → เปิดโหมด
+- `พอดี lite|full|stop|stats|status` → Thai prefix command
+- `พอดีสถิติ` → เท่ากับ `stats`
+- `พอดีสถานะ` → เท่ากับ `status`
 
 ## Rules
 
@@ -50,6 +61,11 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 |---|---|---|
 | **lite** | `/pordee lite` | Drop polite particles + hedging + pleasantries. Grammar intact. Professional Thai prose. |
 | **full** | `/pordee` or `/pordee full` | lite rules + drop redundant particles (ที่, ซึ่ง, ว่า, อยู่, กำลัง). Drop nominalizer prefixes (การ-, ความ-) when root verb works. Fragments OK. Short synonyms. |
+
+## Status vs Stats
+
+- `status` = current mode state เช่น `pordee status: active (lite)`
+- `stats` = usage counters + estimated token savings
 
 ## Examples
 
