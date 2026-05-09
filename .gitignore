@@ -10,6 +10,9 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+AGENTS.md
+.agents/
+skills-lock.json
 
 # Pordee state (not committed; user-local)
 .pordee/
