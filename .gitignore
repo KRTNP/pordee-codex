@@ -17,3 +17,11 @@ Thumbs.db
 # Test artifacts
 *.tmp
 state.json.tmp
+
+# Graphify artifacts
+graphify-out/
+.graphify_*.json
+.graphify_*.txt
+
+# Local Codex install artifacts
+.codex-plugins/

@@ -25,6 +25,41 @@ claude plugin install pordee@pordee
 
 ---
 
+### ผ่าน Codex แบบ project-local
+
+ติดตั้งลงใน project เป้าหมายเท่านั้น ไม่ได้เป็น global install flow
+
+Unix / macOS:
+
+```bash
+./install.sh --project /path/to/project
+```
+
+Windows PowerShell:
+
+```powershell
+.\install.ps1 -Project C:\path\to\project
+```
+
+ผลลัพธ์จะถูกเขียนลงที่:
+
+| รายการ | ตำแหน่ง |
+|---|---|
+| plugin bundle | `<project>/.codex-plugins/pordee` |
+| marketplace config | `<project>/.agents/plugins/marketplace.json` |
+
+ตัวที่ติดตั้งคือ local plugin manifest + packaged skill เท่านั้น ยังไม่ vendor source-repo adapter/runtime/state-management code ลง target project
+
+รันซ้ำได้อย่างปลอดภัย: installer จะ sync bundle ทับของเดิม และอัปเดต `marketplace.json` แบบไม่สร้าง `pordee` entry ซ้ำ
+
+หลังติดตั้ง ให้ restart Codex แล้วเปิด `pordee` จาก Plugins UI ใน project นั้น
+
+ลบเองแบบ manual:
+
+1. ลบ `<project>/.codex-plugins/pordee`
+2. ลบ entry `pordee` ออกจาก `<project>/.agents/plugins/marketplace.json`
+3. restart Codex ใน project นั้นใหม่
+
 ## วิธีใช้
 
 ### Slash command
@@ -52,7 +87,7 @@ claude plugin install pordee@pordee
 
 ## Codex support
 
-pordee มี support ระดับ behavior/adapter สำหรับ Codex ด้วย trigger ชุดเดียวกันกับ Claude Code เพื่อให้เปิด/ปิดโหมดได้จาก prompt โดยตรง
+ส่วนนี้อธิบาย Codex support ฝั่ง source repo และ behavior ที่ออกแบบไว้สำหรับ adapter; project-local install ด้านบนจะได้เฉพาะ manifest + skill ที่ Codex โหลดไปใช้งาน
 
 ### Trigger ที่รองรับ
 
@@ -69,6 +104,8 @@ pordee มี support ระดับ behavior/adapter สำหรับ Codex 
 | `พูดปกติ` | ปิด |
 
 ### Scope ของ state
+
+state scope นี้อยู่ในฝั่ง source-repo adapter/runtime ไม่ใช่สิ่งที่ project-local bundle vendor มาให้โดยตรง
 
 pordee อ่าน state ตามลำดับนี้:
 
@@ -246,14 +283,15 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 
 ## กลไกการทำงาน
 
-1. ติดตั้ง plugin → Claude Code register hook ของ pordee อัตโนมัติ
-2. เริ่ม session ใหม่ → SessionStart hook อ่าน state ตามลำดับ `~/.pordee/state.json` แล้ว `<repo>/.pordee/state.json`
-3. ถ้า `enabled=true` → inject กฎ pordee เข้า context ของ session
-4. ทุก turn ที่ user พิมพ์ → UserPromptSubmit hook
+1. ติดตั้ง Claude plugin → Claude Code register hook ของ pordee อัตโนมัติ
+2. เปิด Codex local plugin → Codex โหลด local manifest + packaged skill จาก `<project>/.codex-plugins/pordee`
+3. ฝั่ง adapter/runtime ใน source repo ถ้ามีการใช้งาน state จะอ่านตามลำดับ `~/.pordee/state.json` แล้ว `<repo>/.pordee/state.json`
+4. ถ้า `enabled=true` → inject กฎ pordee เข้า context ของ session
+5. ทุก turn ที่ user พิมพ์ → UserPromptSubmit hook
    - ตรวจ trigger ใน prompt (`/pordee`, `/pordee lite`, `/pordee full`, `/pordee stop`, `พอดี`, `พอดีโหมด`, `พูดสั้นๆ`, `หยุดพอดี`, `พูดปกติ`)
    - update state ถ้าเจอ trigger
    - ฉีด reminder ของ level ปัจจุบันเข้า context (กันไม่ให้ model drift)
-5. State ถาวรข้าม session และ merge ตาม precedence `repo override > global > defaults`
+6. State ถาวรข้าม session และ merge ตาม precedence `repo override > global > defaults`
 
 ---
 
@@ -282,7 +320,8 @@ Pattern: `[ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].`
 
 ## ข้อจำกัด
 
-- README นี้ยก Claude Code เป็น flow หลักในการติดตั้ง แต่ trigger, level และ state scope ใช้กับ Codex ได้ด้วย
+- README นี้แยก Claude Code install path กับ Codex project-local install path ออกจากกันชัดเจน
+- Trigger, level และ state scope ใช้กับ Codex ได้ด้วย แต่ flow ติดตั้งของ Codex ใน README นี้ยังเป็นแบบ project-local เท่านั้น
 
 ---
 
