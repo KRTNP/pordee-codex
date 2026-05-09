@@ -5,7 +5,8 @@ const {
   normalizeLevel,
   renderSessionContext,
   renderPromptReminder,
-  renderStatsSummary
+  renderStatsSummary,
+  renderStatusSummary
 } = require('../core/pordee-render.js');
 
 test('normalizeLevel keeps supported levels and defaults invalid input to full', () => {
@@ -51,4 +52,9 @@ test('renderStatsSummary renders compact stats text', () => {
   assert.match(text, /session: 2 active prompts, 1 toggles, est\. 42 tokens saved/);
   assert.match(text, /lifetime: 10 active prompts, 4 toggles, est\. 210 tokens saved/);
   assert.match(text, /benchmark: lite 10% avg, full 40% avg across 3 built-in samples/);
+});
+
+test('renderStatusSummary renders current state in one line', () => {
+  assert.equal(renderStatusSummary({ enabled: true, level: 'lite' }), 'pordee status: active (lite)');
+  assert.equal(renderStatusSummary({ enabled: false, level: 'bogus' }), 'pordee status: off (full)');
 });

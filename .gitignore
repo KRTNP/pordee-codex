@@ -13,6 +13,7 @@ Thumbs.db
 
 # Pordee state (not committed; user-local)
 .pordee/
+state.json
 
 # Test artifacts
 *.tmp
@@ -25,3 +26,4 @@ graphify-out/
 
 # Local Codex install artifacts
 .codex-plugins/
+.agents/plugins/

@@ -12,7 +12,11 @@ const {
   recordActivePrompt,
   recordToggle
 } = require('../../core/pordee-stats.js');
-const { renderSessionContext, renderStatsSummary } = require('../../core/pordee-render.js');
+const {
+  renderSessionContext,
+  renderStatsSummary,
+  renderStatusSummary
+} = require('../../core/pordee-render.js');
 
 const sessionTracker = new Set();
 
@@ -85,6 +89,14 @@ function handlePrompt({ prompt = '', homeDir, repoRoot, scope = 'auto' } = {}) {
     return {
       kind: 'stats',
       message: renderStatsSummary(getStatsSummary(statsOptions))
+    };
+  }
+  if (command?.kind === 'status') {
+    const state = getEffectiveState(statsOptions);
+    return {
+      kind: 'status',
+      message: renderStatusSummary(state),
+      state
     };
   }
 

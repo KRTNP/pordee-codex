@@ -3,6 +3,16 @@ function stripCodeFences(text) {
   return text.replace(/```[\s\S]*?```/g, '').replace(/```[\s\S]*$/, '');
 }
 
+function parseCommandArg(arg) {
+  if (arg === 'stats') return { kind: 'stats' };
+  if (arg === 'status') return { kind: 'status' };
+  if (arg === 'lite') return { kind: 'toggle', patch: { enabled: true, level: 'lite' } };
+  if (arg === 'full') return { kind: 'toggle', patch: { enabled: true, level: 'full' } };
+  if (arg === 'stop') return { kind: 'toggle', patch: { enabled: false } };
+  if (arg === '') return { kind: 'toggle', patch: { enabled: true } };
+  return null;
+}
+
 function parsePordeeCommand(prompt) {
   const cleaned = stripCodeFences(prompt);
   const trimmed = cleaned.trim();
@@ -10,18 +20,19 @@ function parsePordeeCommand(prompt) {
   // Slash commands — case-insensitive on the command, exact on args.
   const slashMatch = trimmed.match(/^\/pordee(?:\s+(\w+))?$/i);
   if (slashMatch) {
-    const arg = (slashMatch[1] || '').toLowerCase();
-    if (arg === 'stats') return { kind: 'stats' };
-    if (arg === 'lite') return { kind: 'toggle', patch: { enabled: true, level: 'lite' } };
-    if (arg === 'full') return { kind: 'toggle', patch: { enabled: true, level: 'full' } };
-    if (arg === 'stop') return { kind: 'toggle', patch: { enabled: false } };
-    if (arg === '') return { kind: 'toggle', patch: { enabled: true } };  // bare /pordee
-    // Unknown subcommand — ignore.
-    return null;
+    return parseCommandArg((slashMatch[1] || '').toLowerCase());
   }
 
   if (trimmed === 'พอดีสถิติ') {
     return { kind: 'stats' };
+  }
+  if (trimmed === 'พอดีสถานะ') {
+    return { kind: 'status' };
+  }
+
+  const thaiPrefixMatch = trimmed.match(/^พอดี(?:โหมด)?(?:\s+([A-Za-z]+))?$/i);
+  if (thaiPrefixMatch) {
+    return parseCommandArg((thaiPrefixMatch[1] || '').toLowerCase());
   }
 
   // Thai phrase triggers — match only when the trigger is the entire trimmed input.

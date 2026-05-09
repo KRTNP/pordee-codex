@@ -52,9 +52,17 @@ function renderStatsSummary(summary = {}) {
   ].join('\n');
 }
 
+function renderStatusSummary(state = {}) {
+  const level = normalizeLevel(state.level);
+  const enabled = state.enabled === true;
+
+  return `pordee status: ${enabled ? 'active' : 'off'} (${level})`;
+}
+
 module.exports = {
   normalizeLevel,
   renderSessionContext,
   renderPromptReminder,
-  renderStatsSummary
+  renderStatsSummary,
+  renderStatusSummary
 };

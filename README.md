@@ -110,6 +110,7 @@ Windows PowerShell:
 | `/pordee full`  | เปิดใช้งานโหมด `full`               |
 | `/pordee stop`  | ปิดโหมด                             |
 | `/pordee stats` | ดูสถิติของ `session` และ `lifetime` |
+| `/pordee status` | ดูสถานะปัจจุบัน (`on/off` + level) |
 
 ### Thai Keyword Triggers
 
@@ -120,9 +121,15 @@ Windows PowerShell:
 | `พอดี`      | เปิดโหมด |
 | `พอดีโหมด`  | เปิดโหมด |
 | `พูดสั้นๆ`  | เปิดโหมด |
+| `พอดี lite` | เปิด `lite` |
+| `พอดี full` | เปิด `full` |
+| `พอดี stop` | ปิดโหมด |
+| `พอดี status` | ดูสถานะ |
+| `พอดี stats` | ดูสถิติ |
 | `หยุดพอดี`  | ปิดโหมด  |
 | `พูดปกติ`   | ปิดโหมด  |
 | `พอดีสถิติ` | ดูสถิติ  |
+| `พอดีสถานะ` | ดูสถานะ  |
 
 ## Levels
 
@@ -162,6 +169,25 @@ Pattern โดยรวม:
 
 ```text
 พอดีสถิติ
+```
+
+สถานะปัจจุบัน:
+
+```text
+/pordee status
+```
+
+หรือ:
+
+```text
+พอดีสถานะ
+```
+
+ตัวอย่าง Output:
+
+```text
+pordee status: active (lite)
+
 ```
 
 ตัวอย่าง Output:

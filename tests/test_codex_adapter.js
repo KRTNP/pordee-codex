@@ -151,6 +151,55 @@ test('handlePrompt returns stats result for /pordee stats', () => {
   }
 });
 
+test('handlePrompt returns status result for /pordee status without mutating state', () => {
+  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+  const env = makeEnv();
+  try {
+    const result = handlePrompt({
+      prompt: '/pordee status',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+
+    assert.equal(result.kind, 'status');
+    assert.equal(result.message, 'pordee status: off (full)');
+  } finally {
+    cleanup(env);
+  }
+});
+
+test('handlePrompt accepts Thai prefixed commands for toggle and status', () => {
+  const { handlePrompt } = require('../adapters/codex/pordee-codex.js');
+  const env = makeEnv();
+  try {
+    const enableResult = handlePrompt({
+      prompt: 'พอดี lite',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+    assert.equal(enableResult.kind, 'trigger');
+    assert.equal(enableResult.message, 'pordee lite active');
+
+    const statusResult = handlePrompt({
+      prompt: 'พอดี status',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+    assert.equal(statusResult.kind, 'status');
+    assert.equal(statusResult.message, 'pordee status: active (lite)');
+
+    const stopResult = handlePrompt({
+      prompt: 'พอดี stop',
+      homeDir: env.homeDir,
+      repoRoot: env.repoRoot
+    });
+    assert.equal(stopResult.kind, 'trigger');
+    assert.equal(stopResult.message, 'pordee off');
+  } finally {
+    cleanup(env);
+  }
+});
+
 test('handlePrompt resolves enabled context using shared global and repo precedence', () => {
   const { resolveStatePaths, writeStateFile } = require('../core/pordee-state.js');
   const { handlePrompt } = require('../adapters/codex/pordee-codex.js');

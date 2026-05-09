@@ -16,7 +16,29 @@ test('parseTrigger ignores unknown slash subcommands', () => {
 
 test('parsePordeeCommand detects stats commands', () => {
   assert.deepEqual(parsePordeeCommand('/pordee stats'), { kind: 'stats' });
+  assert.deepEqual(parsePordeeCommand('พอดี stats'), { kind: 'stats' });
   assert.deepEqual(parsePordeeCommand('พอดีสถิติ'), { kind: 'stats' });
+});
+
+test('parsePordeeCommand detects status commands', () => {
+  assert.deepEqual(parsePordeeCommand('/pordee status'), { kind: 'status' });
+  assert.deepEqual(parsePordeeCommand('พอดี status'), { kind: 'status' });
+  assert.deepEqual(parsePordeeCommand('พอดีสถานะ'), { kind: 'status' });
+});
+
+test('parsePordeeCommand accepts Thai prefix with english subcommands', () => {
+  assert.deepEqual(parsePordeeCommand('พอดี lite'), {
+    kind: 'toggle',
+    patch: { enabled: true, level: 'lite' }
+  });
+  assert.deepEqual(parsePordeeCommand('พอดี full'), {
+    kind: 'toggle',
+    patch: { enabled: true, level: 'full' }
+  });
+  assert.deepEqual(parsePordeeCommand('พอดี stop'), {
+    kind: 'toggle',
+    patch: { enabled: false }
+  });
 });
 
 test('parseTrigger matches Thai enable and disable phrases only when exact', () => {

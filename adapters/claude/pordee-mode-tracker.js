@@ -8,7 +8,11 @@
 const { getState, setState, logError } = require('./pordee-config');
 const { parsePordeeCommand } = require('../../core/pordee-triggers');
 const { getStatsSummary, recordActivePrompt, recordToggle } = require('../../core/pordee-stats');
-const { renderPromptReminder, renderStatsSummary } = require('../../core/pordee-render');
+const {
+  renderPromptReminder,
+  renderStatsSummary,
+  renderStatusSummary
+} = require('../../core/pordee-render');
 
 function buildStatsOptions() {
   return {
@@ -18,17 +22,24 @@ function buildStatsOptions() {
 }
 
 function emitActiveReminder(state) {
-  process.stdout.write(JSON.stringify({
+  return JSON.stringify({
     hookSpecificOutput: {
       hookEventName: 'UserPromptSubmit',
       additionalContext: renderPromptReminder(state)
     }
-  }));
+  });
 }
 
-let input = '';
-process.stdin.on('data', chunk => { input += chunk; });
-process.stdin.on('end', () => {
+function emitAdditionalContext(text) {
+  return JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'UserPromptSubmit',
+      additionalContext: text
+    }
+  });
+}
+
+function handleTrackerInput(input) {
   try {
     const data = JSON.parse(input);
     const prompt = (data.prompt || '').toString();
@@ -36,13 +47,11 @@ process.stdin.on('end', () => {
     let handledToggle = false;
 
     if (command?.kind === 'stats') {
-      process.stdout.write(JSON.stringify({
-        hookSpecificOutput: {
-          hookEventName: 'UserPromptSubmit',
-          additionalContext: renderStatsSummary(getStatsSummary(buildStatsOptions()))
-        }
-      }));
-      process.exit(0);
+      return emitAdditionalContext(renderStatsSummary(getStatsSummary(buildStatsOptions())));
+    }
+
+    if (command?.kind === 'status') {
+      return emitAdditionalContext(renderStatusSummary(getState()));
     }
 
     if (command?.kind === 'toggle') {
@@ -59,14 +68,34 @@ process.stdin.on('end', () => {
     const state = getState();
     if (state.enabled && !handledToggle) {
       recordActivePrompt(buildStatsOptions(), state.level);
-      emitActiveReminder(state);
+      return emitActiveReminder(state);
     } else if (state.enabled && handledToggle) {
-      emitActiveReminder(state);
+      return emitActiveReminder(state);
     }
   } catch (e) {
     // Silent fail to never block prompts; log to ~/.pordee/error.log per spec §4.4.
     logError(`mode-tracker: ${e.message}`);
   }
+  return '';
+}
+
+async function main() {
+  let input = '';
+  for await (const chunk of process.stdin) {
+    input += chunk;
+  }
+
+  const output = handleTrackerInput(input);
+  if (output) {
+    process.stdout.write(output);
+  }
   process.exit(0);
-});
-process.stdin.resume();
+}
+
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  handleTrackerInput
+};
