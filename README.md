@@ -24,7 +24,6 @@
 ```bash
 claude plugin marketplace add kerlos/pordee
 claude plugin install pordee@pordee
-
 ```
 
 หลังจากติดตั้ง:
@@ -40,13 +39,12 @@ Source ที่ใช้:
 
 ```text
 skills/pordee/SKILL.md
-
 ```
 
 ตัวอย่าง:
 
 ```bash
-npx skills add [https://github.com/](https://github.com/)<owner>/<repo>/tree/<ref>/skills/pordee
+npx skills add https://github.com/KRTNP/pordee-codex/tree/main/skills/pordee
 
 ```
 
@@ -66,14 +64,12 @@ Unix / macOS:
 
 ```bash
 ./install.sh --project /path/to/project
-
 ```
 
 Windows PowerShell:
 
 ```powershell
 .\install.ps1 -Project C:\path\to\project
-
 ```
 
 ผลลัพธ์:
@@ -152,7 +148,6 @@ Pattern โดยรวม:
 
 ```text
 [ของ] [ทำ] [เหตุผล]. [ขั้นต่อ].
-
 ```
 
 ## Pordee Stats
@@ -161,14 +156,12 @@ Pattern โดยรวม:
 
 ```text
 /pordee stats
-
 ```
 
 หรือ:
 
 ```text
 พอดีสถิติ
-
 ```
 
 ตัวอย่าง Output:
@@ -178,7 +171,6 @@ pordee stats
 session: 14 active prompts, 3 toggles, est. 420 tokens saved
 lifetime: 188 active prompts, 44 toggles, est. 6120 tokens saved
 benchmark: lite 41% avg, full 68% avg across 3 built-in samples
-
 ```
 
 ตัวเลขที่แสดงผลแบ่งออกเป็น 2 ประเภท:
