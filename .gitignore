@@ -27,6 +27,6 @@ graphify-out/
 .graphify_*.json
 .graphify_*.txt
 
-# Local Codex install artifacts
-.codex-plugins/
-.agents/plugins/
+# # Local Codex install artifacts
+# .codex-plugins/
+# .agents/plugins/
