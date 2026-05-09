@@ -1,0 +1,10 @@
+{
+  "name": "pordee",
+  "description": "Thai+English terse communication mode for Codex.",
+  "skills": [
+    {
+      "name": "pordee",
+      "path": "skills/pordee/SKILL.md"
+    }
+  ]
+}
