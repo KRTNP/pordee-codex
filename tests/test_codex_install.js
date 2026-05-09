@@ -138,6 +138,71 @@ test('installIntoProject merges without duplicating pordee entry', async () => {
   }
 });
 
+test('installIntoProject keeps marketplace and existing bundle unchanged when bundle replacement fails', async () => {
+  const env = makeEnv();
+  const originalRenameSync = fs.renameSync;
+
+  try {
+    const { installIntoProject } = loadInstaller();
+    const marketplaceDir = path.join(env.targetRoot, '.agents', 'plugins');
+    const marketplacePath = path.join(marketplaceDir, 'marketplace.json');
+    const installedRoot = path.join(env.targetRoot, '.codex-plugins', 'pordee');
+
+    fs.mkdirSync(marketplaceDir, { recursive: true });
+    fs.writeFileSync(
+      marketplacePath,
+      JSON.stringify(
+        {
+          plugins: [{ name: 'existing-plugin', path: './.codex-plugins/existing-plugin' }]
+        },
+        null,
+        2
+      )
+    );
+    fs.mkdirSync(path.join(installedRoot, '.codex-plugin'), { recursive: true });
+    fs.mkdirSync(path.join(installedRoot, 'skills', 'pordee'), { recursive: true });
+    fs.writeFileSync(
+      path.join(installedRoot, '.codex-plugin', 'plugin.json'),
+      JSON.stringify({ name: 'stale', skills: [] }, null, 2)
+    );
+    fs.writeFileSync(path.join(installedRoot, 'skills', 'pordee', 'SKILL.md'), 'stale skill\n');
+
+    fs.renameSync = (from, to) => {
+      if (
+        from.includes(`${path.sep}.codex-plugins${path.sep}pordee.staging-`) &&
+        to === installedRoot
+      ) {
+        throw new Error('simulated replacement failure');
+      }
+
+      return originalRenameSync(from, to);
+    };
+
+    await assert.rejects(
+      installIntoProject({ sourceRoot: env.sourceRoot, targetRoot: env.targetRoot }),
+      /simulated replacement failure/
+    );
+
+    const marketplace = JSON.parse(fs.readFileSync(marketplacePath, 'utf8'));
+    const installedManifest = JSON.parse(
+      fs.readFileSync(path.join(installedRoot, '.codex-plugin', 'plugin.json'), 'utf8')
+    );
+    const installedSkill = fs.readFileSync(
+      path.join(installedRoot, 'skills', 'pordee', 'SKILL.md'),
+      'utf8'
+    );
+
+    assert.deepEqual(marketplace.plugins, [
+      { name: 'existing-plugin', path: './.codex-plugins/existing-plugin' }
+    ]);
+    assert.equal(installedManifest.name, 'stale');
+    assert.equal(installedSkill, 'stale skill\n');
+  } finally {
+    fs.renameSync = originalRenameSync;
+    cleanup(env);
+  }
+});
+
 test('installIntoProject fails on invalid marketplace JSON', async () => {
   const env = makeEnv();
 
@@ -297,6 +362,61 @@ test('installIntoProject fails cleanly when a required source bundle path is a d
       false
     );
   } finally {
+    cleanup(env);
+  }
+});
+
+test('installIntoProject rejects explicit project paths that resolve to the source checkout root', async () => {
+  const env = makeEnv();
+
+  try {
+    const { installIntoProject } = loadInstaller();
+
+    await assert.rejects(
+      installIntoProject({ sourceRoot: env.sourceRoot, project: env.sourceRoot }),
+      /source checkout|separate project directory/i
+    );
+  } finally {
+    cleanup(env);
+  }
+});
+
+test('writeMarketplaceAtomically updates marketplace via temp file rename', () => {
+  const env = makeEnv();
+  const originalRenameSync = fs.renameSync;
+
+  try {
+    const { writeMarketplaceAtomically } = loadInstaller();
+    const marketplaceDir = path.join(env.targetRoot, '.agents', 'plugins');
+    const marketplacePath = path.join(marketplaceDir, 'marketplace.json');
+    const renameCalls = [];
+
+    fs.mkdirSync(marketplaceDir, { recursive: true });
+    fs.writeFileSync(marketplacePath, JSON.stringify({ plugins: [] }, null, 2));
+
+    fs.renameSync = (from, to) => {
+      renameCalls.push([from, to]);
+      return originalRenameSync(from, to);
+    };
+
+    writeMarketplaceAtomically(env.targetRoot, {
+      plugins: [{ name: 'pordee', path: './.codex-plugins/pordee' }]
+    });
+
+    const updatedMarketplace = JSON.parse(fs.readFileSync(marketplacePath, 'utf8'));
+
+    assert.equal(renameCalls.length, 1);
+    assert.match(renameCalls[0][0], /marketplace\.json\.tmp-/);
+    assert.equal(renameCalls[0][1], marketplacePath);
+    assert.deepEqual(updatedMarketplace.plugins, [
+      { name: 'pordee', path: './.codex-plugins/pordee' }
+    ]);
+    assert.equal(
+      fs.readdirSync(marketplaceDir).some((entry) => entry.includes('marketplace.json.tmp-')),
+      false
+    );
+  } finally {
+    fs.renameSync = originalRenameSync;
     cleanup(env);
   }
 });

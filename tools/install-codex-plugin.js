@@ -32,11 +32,7 @@ function ensureWritableMarketplaceParent(targetRoot) {
   }
 }
 
-function ensureNotSourceCheckout(targetRoot, sourceRoot, projectOptionProvided) {
-  if (projectOptionProvided) {
-    return;
-  }
-
+function ensureNotSourceCheckout(targetRoot, sourceRoot) {
   if (path.resolve(targetRoot) === path.resolve(sourceRoot)) {
     throw new Error(
       `Refusing to install into this source checkout at ${targetRoot}. ` +
@@ -47,6 +43,20 @@ function ensureNotSourceCheckout(targetRoot, sourceRoot, projectOptionProvided) 
 
 function makeUniqueSiblingPath(basePath, suffix) {
   return `${basePath}.${suffix}-${process.pid}-${Date.now()}`;
+}
+
+function writeMarketplaceAtomically(targetRoot, marketplace) {
+  const marketplacePath = path.join(targetRoot, MARKETPLACE_RELATIVE_PATH);
+  const tempPath = makeUniqueSiblingPath(marketplacePath, 'tmp');
+
+  try {
+    fs.writeFileSync(tempPath, `${JSON.stringify(marketplace, null, 2)}\n`);
+    fs.renameSync(tempPath, marketplacePath);
+  } finally {
+    fs.rmSync(tempPath, { force: true });
+  }
+
+  return marketplacePath;
 }
 
 function replaceDirectoryAtomically(targetPath, stagedPath) {
@@ -80,8 +90,24 @@ function replaceDirectoryAtomically(targetPath, stagedPath) {
     throw error;
   } finally {
     fs.rmSync(stagedPath, { recursive: true, force: true });
-    fs.rmSync(backupPath, { recursive: true, force: true });
   }
+
+  return {
+    commit() {
+      fs.rmSync(backupPath, { recursive: true, force: true });
+    },
+    rollback() {
+      if (fs.existsSync(targetPath)) {
+        fs.rmSync(targetPath, { recursive: true, force: true });
+      }
+
+      if (movedTargetToBackup) {
+        fs.renameSync(backupPath, targetPath);
+      } else {
+        fs.rmSync(backupPath, { recursive: true, force: true });
+      }
+    }
+  };
 }
 
 function resolveTargetRoot(project) {
@@ -153,7 +179,6 @@ function validateSourceBundle(sourcePluginRoot) {
 async function installIntoProject(options = {}) {
   const sourceRoot = options.sourceRoot ? path.resolve(options.sourceRoot) : path.resolve(__dirname, '..');
   const targetRoot = resolveTargetRoot(options.targetRoot ?? options.project);
-  const projectOptionProvided = options.targetRoot !== undefined || options.project !== undefined;
   const sourcePluginRoot = path.join(sourceRoot, 'plugins', PLUGIN_NAME);
   const installedPluginRoot = path.join(targetRoot, '.codex-plugins', PLUGIN_NAME);
   const stagingPluginRoot = makeUniqueSiblingPath(installedPluginRoot, 'staging');
@@ -162,7 +187,7 @@ async function installIntoProject(options = {}) {
   const marketplace = upsertPordeePlugin(readMarketplace(targetRoot));
 
   validateSourceBundle(sourcePluginRoot);
-  ensureNotSourceCheckout(targetRoot, sourceRoot, projectOptionProvided);
+  ensureNotSourceCheckout(targetRoot, sourceRoot);
   ensureWritableMarketplaceParent(targetRoot);
 
   try {
@@ -176,8 +201,24 @@ async function installIntoProject(options = {}) {
   try {
     fs.rmSync(stagingPluginRoot, { recursive: true, force: true });
     fs.cpSync(sourcePluginRoot, stagingPluginRoot, { recursive: true });
-    fs.writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`);
-    replaceDirectoryAtomically(installedPluginRoot, stagingPluginRoot);
+    const replacedBundle = replaceDirectoryAtomically(installedPluginRoot, stagingPluginRoot);
+
+    try {
+      writeMarketplaceAtomically(targetRoot, marketplace);
+    } catch (error) {
+      try {
+        replacedBundle.rollback();
+      } catch (rollbackError) {
+        throw new Error(
+          `Failed to update marketplace and restore the previous plugin bundle: ${rollbackError.message}. ` +
+          `Original error: ${error.message}`
+        );
+      }
+
+      throw error;
+    }
+
+    replacedBundle.commit();
   } finally {
     fs.rmSync(stagingPluginRoot, { recursive: true, force: true });
   }
@@ -244,7 +285,8 @@ module.exports = {
   installIntoProject,
   readMarketplace,
   resolveTargetRoot,
-  upsertPordeePlugin
+  upsertPordeePlugin,
+  writeMarketplaceAtomically
 };
 
 if (require.main === module) {
