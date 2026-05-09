@@ -25,7 +25,31 @@ claude plugin install pordee@pordee
 
 ---
 
-### ผ่าน Codex แบบ project-local
+### ผ่าน Codex แบบ global skill (`npx skills add`)
+
+เหมาะถ้าอยากได้ `pordee` เป็น skill กลางของ Codex ทั้งเครื่อง โดยใช้ root skill นี้:
+
+```text
+skills/pordee/SKILL.md
+```
+
+ตัวอย่าง:
+
+```bash
+npx skills add https://github.com/<owner>/<repo>/tree/<ref>/skills/pordee
+```
+
+ผลลัพธ์:
+
+- ติดตั้ง skill เข้า Codex global skills directory
+- ได้ behavior ของ `pordee` จาก root skill โดยตรง
+- ไม่ได้ติดตั้ง project-local plugin bundle
+
+หลังติดตั้ง ให้ restart Codex
+
+---
+
+### ผ่าน Codex แบบ project-local plugin
 
 ติดตั้งลงใน project เป้าหมายเท่านั้น ไม่ได้เป็น global install flow
 
@@ -60,6 +84,13 @@ Windows PowerShell:
 2. ลบ entry `pordee` ออกจาก `<project>/.agents/plugins/marketplace.json`
 3. restart Codex ใน project นั้นใหม่
 
+### เลือกแบบไหนดี
+
+| ทางติดตั้ง | scope | ติดตั้งอะไร | ใช้เมื่อ |
+|---|---|---|---|
+| `npx skills add .../skills/pordee` | global | root skill | อยากได้ `pordee` เป็น skill กลางของ Codex |
+| `./install.sh --project ...` / `install.ps1` | project-local | local plugin bundle + marketplace entry | อยากเปิดใช้เฉพาะ repo เป้าหมาย |
+
 ## วิธีใช้
 
 ### Slash command
@@ -70,6 +101,7 @@ Windows PowerShell:
 | `/pordee lite` | โหมดเบา — ตัดคำสุภาพและ filler ออก แต่ grammar เต็ม |
 | `/pordee full` | โหมดเต็ม — ตัดให้สั้นที่สุด |
 | `/pordee stop` | ปิด |
+| `/pordee stats` | ดู session/lifetime stats และ estimated token savings |
 
 ### Keyword (ไม่ต้องพิมพ์ slash)
 
@@ -80,8 +112,35 @@ Windows PowerShell:
 | `พอดี` | เปิด |
 | `พอดีโหมด` | เปิด |
 | `พูดสั้นๆ` | เปิด |
+| `พอดีสถิติ` | ดูสถิติ |
 | `หยุดพอดี` | ปิด |
 | `พูดปกติ` | ปิด |
+
+### Stats
+
+ใช้:
+
+```text
+/pordee stats
+```
+
+หรือ:
+
+```text
+พอดีสถิติ
+```
+
+ผลลัพธ์จะแสดง:
+
+- session usage
+- lifetime usage
+- estimated token savings
+- benchmark averages ของ `lite` กับ `full`
+
+หมายเหตุ:
+
+- ตัวเลข `tokens saved` เป็น `estimated` จาก built-in benchmark model
+- ไม่ใช่ exact telemetry ของทุก historical reply
 
 ---
 

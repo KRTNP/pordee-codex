@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pordee-activate.js\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/adapters/claude/pordee-activate.js\"",
             "timeout": 5,
             "statusMessage": "Loading pordee mode..."
           }
@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pordee-mode-tracker.js\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/adapters/claude/pordee-mode-tracker.js\"",
             "timeout": 5
           }
         ]

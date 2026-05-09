@@ -5,7 +5,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const TRACKER_PATH = path.join(__dirname, '..', 'hooks', 'pordee-mode-tracker.js');
+const TRACKER_PATH = path.join(__dirname, '..', 'adapters', 'claude', 'pordee-mode-tracker.js');
+
+function sequentialTest(name, fn) {
+  test(name, { concurrency: false }, fn);
+}
 
 function runTracker(prompt, env = {}) {
   return spawnSync(process.execPath, [TRACKER_PATH], {
@@ -26,7 +30,13 @@ function readState(home) {
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
-test('tracker exits 0 with empty stdout when state disabled and no trigger', () => {
+function readStats(home) {
+  const p = path.join(home, '.pordee', 'stats.json');
+  if (!fs.existsSync(p)) return null;
+  return JSON.parse(fs.readFileSync(p, 'utf8'));
+}
+
+sequentialTest('tracker exits 0 with empty stdout when state disabled and no trigger', () => {
   const home = makeTempHome();
   try {
     const result = runTracker('hello world', { PORDEE_HOME: home });
@@ -37,7 +47,7 @@ test('tracker exits 0 with empty stdout when state disabled and no trigger', () 
   }
 });
 
-test('tracker emits hookSpecificOutput JSON when pordee enabled', () => {
+sequentialTest('tracker emits hookSpecificOutput JSON when pordee enabled', () => {
   const home = makeTempHome();
   try {
     fs.writeFileSync(path.join(home, 'state.json'),
@@ -53,7 +63,20 @@ test('tracker emits hookSpecificOutput JSON when pordee enabled', () => {
   }
 });
 
-test('tracker exits 0 on malformed stdin JSON (silent)', () => {
+sequentialTest('tracker returns stats summary for /pordee stats without mutating state', () => {
+  const home = makeTempHome();
+  try {
+    const result = runTracker('/pordee stats', { PORDEE_HOME: home });
+    assert.equal(result.status, 0);
+    const parsed = JSON.parse(result.stdout);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /^pordee stats/m);
+    assert.equal(readState(home), null);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+sequentialTest('tracker exits 0 on malformed stdin JSON (silent)', () => {
   const home = makeTempHome();
   try {
     const result = spawnSync(process.execPath, [TRACKER_PATH], {
@@ -68,7 +91,7 @@ test('tracker exits 0 on malformed stdin JSON (silent)', () => {
   }
 });
 
-test('tracker ignores trigger inside code fence', () => {
+sequentialTest('tracker ignores trigger inside code fence', () => {
   const home = makeTempHome();
   try {
     const promptWithFence = 'see this:\n```\n/pordee lite\n```\nthat was inside a fence';
@@ -82,19 +105,21 @@ test('tracker ignores trigger inside code fence', () => {
   }
 });
 
-test('tracker activates with /pordee', () => {
+sequentialTest('tracker activates with /pordee', () => {
   const home = makeTempHome();
   try {
     runTracker('/pordee', { PORDEE_HOME: home });
     const state = readState(home);
+    const stats = readStats(home);
     assert.ok(state, 'state file should be written');
     assert.equal(state.enabled, true);
+    assert.equal(stats.lifetime.enableCount, 1);
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }
 });
 
-test('tracker switches level with /pordee lite', () => {
+sequentialTest('tracker switches level with /pordee lite', () => {
   const home = makeTempHome();
   try {
     runTracker('/pordee lite', { PORDEE_HOME: home });
@@ -106,7 +131,7 @@ test('tracker switches level with /pordee lite', () => {
   }
 });
 
-test('tracker disables with /pordee stop', () => {
+sequentialTest('tracker disables with /pordee stop', () => {
   const home = makeTempHome();
   try {
     fs.writeFileSync(path.join(home, 'state.json'),
@@ -114,6 +139,20 @@ test('tracker disables with /pordee stop', () => {
     runTracker('/pordee stop', { PORDEE_HOME: home });
     const state = readState(home);
     assert.equal(state.enabled, false);
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+sequentialTest('tracker records active prompt stats when pordee enabled', () => {
+  const home = makeTempHome();
+  try {
+    fs.writeFileSync(path.join(home, 'state.json'),
+      JSON.stringify({ enabled: true, level: 'full', version: 1 }));
+    runTracker('regular prompt', { PORDEE_HOME: home });
+    const stats = readStats(home);
+    assert.equal(stats.lifetime.activePromptCount, 1);
+    assert.ok(stats.lifetime.estimatedTokensSaved > 0);
   } finally {
     fs.rmSync(home, { recursive: true, force: true });
   }

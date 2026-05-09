@@ -7,8 +7,6 @@ description: |
   "พูดปกติ", or "/pordee stop".
 ---
 
-Source of truth: `skills/pordee/SKILL.md` at repo root. Keep this packaged copy in sync.
-
 # pordee — โหมดพูดไทยกระชับ
 
 ## Persistence

@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { parseTrigger, stripCodeFences } = require('../core/pordee-triggers.js');
+const { parsePordeeCommand, parseTrigger, stripCodeFences } = require('../core/pordee-triggers.js');
 
 test('parseTrigger matches slash commands case-insensitively on the whole trimmed prompt', () => {
   assert.deepEqual(parseTrigger('  /PORDee  '), { enabled: true });
@@ -12,6 +12,11 @@ test('parseTrigger matches slash commands case-insensitively on the whole trimme
 
 test('parseTrigger ignores unknown slash subcommands', () => {
   assert.equal(parseTrigger('/pordee banana'), null);
+});
+
+test('parsePordeeCommand detects stats commands', () => {
+  assert.deepEqual(parsePordeeCommand('/pordee stats'), { kind: 'stats' });
+  assert.deepEqual(parsePordeeCommand('พอดีสถิติ'), { kind: 'stats' });
 });
 
 test('parseTrigger matches Thai enable and disable phrases only when exact', () => {

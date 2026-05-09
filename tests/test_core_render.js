@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 const {
   normalizeLevel,
   renderSessionContext,
-  renderPromptReminder
+  renderPromptReminder,
+  renderStatsSummary
 } = require('../core/pordee-render.js');
 
 test('normalizeLevel keeps supported levels and defaults invalid input to full', () => {
@@ -37,4 +38,17 @@ test('renderPromptReminder returns single-line reminder', () => {
 test('renderPromptReminder defaults missing or invalid level to full', () => {
   assert.match(renderPromptReminder({ enabled: true }), /PORDEE MODE ACTIVE \(full\)/);
   assert.match(renderPromptReminder({ enabled: true, level: 'bogus' }), /PORDEE MODE ACTIVE \(full\)/);
+});
+
+test('renderStatsSummary renders compact stats text', () => {
+  const text = renderStatsSummary({
+    session: { activePromptCount: 2, toggles: 1, estimatedTokensSaved: 42 },
+    lifetime: { activePromptCount: 10, toggles: 4, estimatedTokensSaved: 210 },
+    benchmark: { liteSavingsPct: 10, fullSavingsPct: 40, sampleCount: 3 }
+  });
+
+  assert.match(text, /^pordee stats/m);
+  assert.match(text, /session: 2 active prompts, 1 toggles, est\. 42 tokens saved/);
+  assert.match(text, /lifetime: 10 active prompts, 4 toggles, est\. 210 tokens saved/);
+  assert.match(text, /benchmark: lite 10% avg, full 40% avg across 3 built-in samples/);
 });

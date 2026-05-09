@@ -3,7 +3,7 @@ function stripCodeFences(text) {
   return text.replace(/```[\s\S]*?```/g, '').replace(/```[\s\S]*$/, '');
 }
 
-function parseTrigger(prompt) {
+function parsePordeeCommand(prompt) {
   const cleaned = stripCodeFences(prompt);
   const trimmed = cleaned.trim();
 
@@ -11,12 +11,17 @@ function parseTrigger(prompt) {
   const slashMatch = trimmed.match(/^\/pordee(?:\s+(\w+))?$/i);
   if (slashMatch) {
     const arg = (slashMatch[1] || '').toLowerCase();
-    if (arg === 'lite') return { enabled: true, level: 'lite' };
-    if (arg === 'full') return { enabled: true, level: 'full' };
-    if (arg === 'stop') return { enabled: false };
-    if (arg === '') return { enabled: true };  // bare /pordee
+    if (arg === 'stats') return { kind: 'stats' };
+    if (arg === 'lite') return { kind: 'toggle', patch: { enabled: true, level: 'lite' } };
+    if (arg === 'full') return { kind: 'toggle', patch: { enabled: true, level: 'full' } };
+    if (arg === 'stop') return { kind: 'toggle', patch: { enabled: false } };
+    if (arg === '') return { kind: 'toggle', patch: { enabled: true } };  // bare /pordee
     // Unknown subcommand — ignore.
     return null;
+  }
+
+  if (trimmed === 'พอดีสถิติ') {
+    return { kind: 'stats' };
   }
 
   // Thai phrase triggers — match only when the trigger is the entire trimmed input.
@@ -25,16 +30,26 @@ function parseTrigger(prompt) {
   const disableThai = ['หยุดพอดี', 'พูดปกติ'];
 
   for (const phrase of disableThai) {
-    if (trimmed === phrase) return { enabled: false };
+    if (trimmed === phrase) return { kind: 'toggle', patch: { enabled: false } };
   }
   for (const phrase of enableThai) {
-    if (trimmed === phrase) return { enabled: true };
+    if (trimmed === phrase) return { kind: 'toggle', patch: { enabled: true } };
   }
 
   return null;
 }
 
+function parseTrigger(prompt) {
+  const command = parsePordeeCommand(prompt);
+  if (!command || command.kind !== 'toggle') {
+    return null;
+  }
+
+  return command.patch;
+}
+
 module.exports = {
   stripCodeFences,
+  parsePordeeCommand,
   parseTrigger
 };

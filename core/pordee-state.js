@@ -20,6 +20,7 @@ function resolveStatePaths(options = {}) {
 
   return {
     globalStatePath: path.join(stateBaseDir, 'state.json'),
+    globalStatsPath: path.join(stateBaseDir, 'stats.json'),
     repoStatePath: repoRoot ? path.join(repoRoot, '.pordee', 'state.json') : null,
     errorLogPath: path.join(stateBaseDir, 'error.log')
   };

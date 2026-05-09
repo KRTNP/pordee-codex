@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const ACTIVATE_PATH = path.join(__dirname, '..', 'hooks', 'pordee-activate.js');
+const ACTIVATE_PATH = path.join(__dirname, '..', 'adapters', 'claude', 'pordee-activate.js');
 
 function runActivate(env = {}) {
   return spawnSync(process.execPath, [ACTIVATE_PATH], {

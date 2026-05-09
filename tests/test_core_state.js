@@ -23,6 +23,7 @@ test('resolveStatePaths returns global and repo paths', () => {
   try {
     const paths = resolveStatePaths({ homeDir: env.homeRoot, repoRoot: env.repoRoot });
     assert.equal(paths.globalStatePath, path.join(env.homeRoot, '.pordee', 'state.json'));
+    assert.equal(paths.globalStatsPath, path.join(env.homeRoot, '.pordee', 'stats.json'));
     assert.equal(paths.repoStatePath, path.join(env.repoRoot, '.pordee', 'state.json'));
     assert.equal(paths.errorLogPath, path.join(env.homeRoot, '.pordee', 'error.log'));
   } finally {

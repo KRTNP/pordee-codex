@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const TRACKER_PATH = path.join(__dirname, '..', 'hooks', 'pordee-mode-tracker.js');
+const TRACKER_PATH = path.join(__dirname, '..', 'adapters', 'claude', 'pordee-mode-tracker.js');
 
 function runTracker(prompt, home) {
   return spawnSync(process.execPath, [TRACKER_PATH], {

@@ -39,8 +39,22 @@ function renderPromptReminder(state = {}) {
   );
 }
 
+function renderStatsSummary(summary = {}) {
+  const session = summary.session || {};
+  const lifetime = summary.lifetime || {};
+  const benchmark = summary.benchmark || {};
+
+  return [
+    'pordee stats',
+    `session: ${session.activePromptCount || 0} active prompts, ${session.toggles || 0} toggles, est. ${session.estimatedTokensSaved || 0} tokens saved`,
+    `lifetime: ${lifetime.activePromptCount || 0} active prompts, ${lifetime.toggles || 0} toggles, est. ${lifetime.estimatedTokensSaved || 0} tokens saved`,
+    `benchmark: lite ${benchmark.liteSavingsPct || 0}% avg, full ${benchmark.fullSavingsPct || 0}% avg across ${benchmark.sampleCount || 0} built-in samples`
+  ].join('\n');
+}
+
 module.exports = {
   normalizeLevel,
   renderSessionContext,
-  renderPromptReminder
+  renderPromptReminder,
+  renderStatsSummary
 };
