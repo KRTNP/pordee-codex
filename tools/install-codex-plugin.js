@@ -9,6 +9,81 @@ const REQUIRED_BUNDLE_FILES = [
   path.join('skills', 'pordee', 'SKILL.md')
 ];
 
+function printUsage() {
+  console.log([
+    'Usage: node tools/install-codex-plugin.js [--project <path>]',
+    '',
+    'Installs the packaged pordee Codex plugin into the given project.',
+    'If --project is omitted, the current working directory is used.'
+  ].join('\n'));
+}
+
+function ensureWritableMarketplaceParent(targetRoot) {
+  const agentsDir = path.join(targetRoot, '.agents');
+
+  if (!fs.existsSync(agentsDir)) {
+    return;
+  }
+
+  try {
+    fs.accessSync(agentsDir, fs.constants.W_OK);
+  } catch (error) {
+    throw new Error(`Cannot write under existing .agents directory at ${agentsDir}: ${error.message}`);
+  }
+}
+
+function ensureNotSourceCheckout(targetRoot, sourceRoot, projectOptionProvided) {
+  if (projectOptionProvided) {
+    return;
+  }
+
+  if (path.resolve(targetRoot) === path.resolve(sourceRoot)) {
+    throw new Error(
+      `Refusing to install into this source checkout at ${targetRoot}. ` +
+      'Pass --project <path> to target a separate project directory.'
+    );
+  }
+}
+
+function makeUniqueSiblingPath(basePath, suffix) {
+  return `${basePath}.${suffix}-${process.pid}-${Date.now()}`;
+}
+
+function replaceDirectoryAtomically(targetPath, stagedPath) {
+  const backupPath = makeUniqueSiblingPath(targetPath, 'backup');
+  const targetExists = fs.existsSync(targetPath);
+  let movedTargetToBackup = false;
+
+  try {
+    if (targetExists) {
+      fs.renameSync(targetPath, backupPath);
+      movedTargetToBackup = true;
+    }
+
+    fs.renameSync(stagedPath, targetPath);
+  } catch (error) {
+    if (movedTargetToBackup) {
+      try {
+        if (fs.existsSync(targetPath)) {
+          fs.rmSync(targetPath, { recursive: true, force: true });
+        }
+
+        fs.renameSync(backupPath, targetPath);
+      } catch (restoreError) {
+        throw new Error(
+          `Failed to replace existing plugin bundle and restore the previous version: ${restoreError.message}. ` +
+          `Original error: ${error.message}`
+        );
+      }
+    }
+
+    throw error;
+  } finally {
+    fs.rmSync(stagedPath, { recursive: true, force: true });
+    fs.rmSync(backupPath, { recursive: true, force: true });
+  }
+}
+
 function resolveTargetRoot(project) {
   if (project === undefined || project === null || project === '') {
     return process.cwd();
@@ -78,24 +153,103 @@ function validateSourceBundle(sourcePluginRoot) {
 async function installIntoProject(options = {}) {
   const sourceRoot = options.sourceRoot ? path.resolve(options.sourceRoot) : path.resolve(__dirname, '..');
   const targetRoot = resolveTargetRoot(options.targetRoot ?? options.project);
+  const projectOptionProvided = options.targetRoot !== undefined || options.project !== undefined;
   const sourcePluginRoot = path.join(sourceRoot, 'plugins', PLUGIN_NAME);
   const installedPluginRoot = path.join(targetRoot, '.codex-plugins', PLUGIN_NAME);
+  const stagingPluginRoot = makeUniqueSiblingPath(installedPluginRoot, 'staging');
   const marketplacePath = path.join(targetRoot, MARKETPLACE_RELATIVE_PATH);
+  const marketplaceDir = path.dirname(marketplacePath);
   const marketplace = upsertPordeePlugin(readMarketplace(targetRoot));
 
   validateSourceBundle(sourcePluginRoot);
+  ensureNotSourceCheckout(targetRoot, sourceRoot, projectOptionProvided);
+  ensureWritableMarketplaceParent(targetRoot);
 
-  fs.mkdirSync(path.dirname(installedPluginRoot), { recursive: true });
-  fs.rmSync(installedPluginRoot, { recursive: true, force: true });
-  fs.cpSync(sourcePluginRoot, installedPluginRoot, { recursive: true });
+  try {
+    fs.mkdirSync(marketplaceDir, { recursive: true });
+  } catch (error) {
+    throw new Error(`Cannot create marketplace directory at ${marketplaceDir}: ${error.message}`);
+  }
 
-  fs.mkdirSync(path.dirname(marketplacePath), { recursive: true });
-  fs.writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`);
+  fs.mkdirSync(path.dirname(stagingPluginRoot), { recursive: true });
+
+  try {
+    fs.rmSync(stagingPluginRoot, { recursive: true, force: true });
+    fs.cpSync(sourcePluginRoot, stagingPluginRoot, { recursive: true });
+    fs.writeFileSync(marketplacePath, `${JSON.stringify(marketplace, null, 2)}\n`);
+    replaceDirectoryAtomically(installedPluginRoot, stagingPluginRoot);
+  } finally {
+    fs.rmSync(stagingPluginRoot, { recursive: true, force: true });
+  }
+
+  return {
+    marketplacePath,
+    pluginTarget: installedPluginRoot,
+    targetRoot
+  };
+}
+
+function parseCliArgs(argv) {
+  const parsed = {};
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (arg === '--help' || arg === '-h') {
+      parsed.help = true;
+      continue;
+    }
+
+    if (arg === '--project') {
+      const project = argv[index + 1];
+
+      if (project === undefined) {
+        throw new Error('Missing value for --project.');
+      }
+
+      parsed.project = project;
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith('--project=')) {
+      parsed.project = arg.slice('--project='.length);
+      continue;
+    }
+
+    throw new Error(`Unknown argument: ${arg}`);
+  }
+
+  return parsed;
+}
+
+async function main(argv = process.argv.slice(2)) {
+  const parsed = parseCliArgs(argv);
+
+  if (parsed.help) {
+    printUsage();
+    return;
+  }
+
+  const result = await installIntoProject({ project: parsed.project });
+
+  console.log(`Installed pordee to ${result.pluginTarget}`);
+  console.log(`Updated marketplace: ${result.marketplacePath}`);
+  console.log('Next: restart Codex and enable pordee from Plugins UI.');
 }
 
 module.exports = {
+  main,
+  parseCliArgs,
   installIntoProject,
   readMarketplace,
   resolveTargetRoot,
   upsertPordeePlugin
 };
+
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.message);
+    process.exitCode = 1;
+  });
+}
